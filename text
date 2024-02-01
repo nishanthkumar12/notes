@@ -10,3 +10,48 @@ for i in range(len(df1)):
         df1['Updated Tail']= 0
     else:
         df1['Updated Tail'] = a
+
+for i in range(len(df1)):
+    if df1.loc[np.where((df1['Product Name']==df1['Product Name'][i]) & (df1['Region Name']==df1['Region Name'][i]) & (df1['Sector V3']==df1['Sector V3'][i]) & (df1['Top 2000']==df1['Top 2000'][i]))]['Net Negative'].sum() == 0:
+        a = df1['Actual Bank Revenue Previous Delivery'][i] + df1['Extrapolated Revenue Previous Delivery'][i] + df1['Tail Previous Delivery'][i]
+        if df1.loc[np.where((df1['Product Name']==df1['Product Name'][i]) & (df1['Region Name']==df1['Region Name'][i]) & (df1['Country HQ 2']==df1['Country HQ 2'][i]) & (df1['Top 2000']==df1['Top 2000'][i]))]['Net Negative'].sum() == 0:
+            a = df1['Actual Bank Revenue Previous Delivery'][i] + df1['Extrapolated Revenue Previous Delivery'][i] + df1['Tail Previous Delivery'][i]
+        else:
+            a = df1['Net Negative'][i]
+
+        # Check if the above output is less than 0
+        if a < 0:
+            df1.at[i, 'Updated Tail'] = 0
+        else:
+            df1.at[i, 'Updated Tail'] = a
+
+
+for i in range(len(df1)):
+    a = 0  # Initialize 'a' to 0
+    if df1.loc[np.where((df1['Product Name']==df1['Product Name'][i]) & (df1['Region Name']==df1['Region Name'][i]) & (df1['Sector V3']==df1['Sector V3'][i]) & (df1['Top 2000']==df1['Top 2000'][i]))]['Net Negative'].sum() == 0:
+        a = df1['Actual Bank Revenue Previous Delivery'][i] + df1['Extrapolated Revenue Previous Delivery'][i] + df1['Tail Previous Delivery'][i]
+        if df1.loc[np.where((df1['Product Name']==df1['Product Name'][i]) & (df1['Region Name']==df1['Region Name'][i]) & (df1['Country HQ 2']==df1['Country HQ 2'][i]) & (df1['Top 2000']==df1['Top 2000'][i]))]['Net Negative'].sum() == 0:
+            a = df1['Actual Bank Revenue Previous Delivery'][i] + df1['Extrapolated Revenue Previous Delivery'][i] + df1['Tail Previous Delivery'][i]
+        else:
+            a = df1['Net Negative'][i]
+
+    # Check if the above output is less than 0
+    if a < 0:
+        df1.at[i, 'Updated Tail'] = 0
+    else:
+        df1.at[i, 'Updated Tail'] = a
+
+for i in range(len(df1)):
+    a = 0  # Initialize 'a' to 0
+    if df1.loc[np.where((df1['Product Name']==df1['Product Name'][i]) & (df1['Region Name']==df1['Region Name'][i]) & (df1['Sector V3']==df1['Sector V3'][i]) & (df1['Top 2000']==df1['Top 2000'][i]))]['Net Negative'].sum() == 0:
+        a = df1['Actual Bank Revenue Previous Delivery'][i] + df1['Extrapolated Revenue Previous Delivery'][i] + df1['Tail Previous Delivery'][i]
+        if df1.loc[np.where((df1['Product Name']==df1['Product Name'][i]) & (df1['Region Name']==df1['Region Name'][i]) & (df1['Country HQ 2']==df1['Country HQ 2'][i]) & (df1['Top 2000']==df1['Top 2000'][i]))]['Net Negative'].sum() == 0:
+            a = df1['Actual Bank Revenue Previous Delivery'][i] + df1['Extrapolated Revenue Previous Delivery'][i] + df1['Tail Previous Delivery'][i]
+        else:
+            a = df1['Net Negative'][i]
+
+    # Check if the above output is less than 0
+    if a < 0:
+        df1.at[i, 'Updated Tail'] = 0
+    else:
+        df1.at[i, 'Updated Tail'] = a
