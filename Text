@@ -1,0 +1,14 @@
+import pandas as pd
+
+# Assuming you have a DataFrame df with columns 'AA4', 'AH4', 'J4', 'AO', 'G', 'K', 'L', 'J'
+def custom_formula(row):
+    try:
+        if row['J4'] == "No":
+            return 0
+        else:
+            return row['AA4'] / (row['AA4'] + row['AH4'] + row['AO'].loc[(df['G'] == row['G']) & (df['K'] == row['K']) & (df['L'] == row['L']) & (df['J'] == row['J'])].sum())
+    except ZeroDivisionError:
+        return 0
+
+# Apply the function to each row in the DataFrame
+df['Result'] = df.apply(custom_formula, axis=1)
