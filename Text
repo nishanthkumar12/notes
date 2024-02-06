@@ -14,3 +14,6 @@ def custom_formula(row):
 df['Result'] = df.apply(custom_formula, axis=1)
 
 df1.loc(np.where((df1['Product Name']==df1['Product Name'][0]) & (df1['Region Name']==df1['Region Name'][0]) & (df1['Sector V3']==df1['Sector V3'][0]) & (df1['Top 2000']==df1['Top 2000'][0])))
+
+def net_neg(row):
+    return row['Extrapolated Revenue Previous Delivery'] if row['Tail Previous Delivery'] < 0 else row['Tail Previous Delivery']
