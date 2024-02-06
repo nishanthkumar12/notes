@@ -19,13 +19,10 @@ def net_neg(row):
     return row['Extrapolated Revenue Previous Delivery'] if row['Tail Previous Delivery'] < 0 else row['Tail Previous Delivery']
 
 
-import numpy as np
-
-mask_bank = (df1['Bank 1 Sector V3*Region*Product 1H22 Core'] > 0) & (df1['Bank 2 Sector V3*Region*Product 1H22 Core'] == 0)
-mask_country = (df1['Bank 1 Country HQ2*Region*Product 1H22 Core'] > 0) & (df1['Bank 2 Country HQ2*Region*Product 1H22 Core'] == 0)
-
-b = mask_bank * (df1['Bank 1 Sector V3*Region*Product 1H22 Core'] * 0.1) * (df1['Updated Tail'] / df1['Tail Aggregate Sector V3 Core'])
-c = mask_country * (df1['Bank 1 Country HQ2*Region*Product 1H22 Core'] * 0.1) * (df1['Updated Tail'] / df1['Tail Aggregate HQ2 Core'])
-
-df1['Final Dummy based on sector & HQ Core'] = np.maximum(b, c)
-
+for i in range(len(df1)):
+    a = df1.loc[(np.where((df1['Product Name']==df1['Product Name'][i]) & (df1['Region Name']==df1['Region Name'][i]) & (df1['Sector V3']==df1['Sector V3'][i]) & (df1['Top 2000']==df1['Top 2000'][i])))]['Final Dummy based on sector & HQ Core'].sum()
+    if df1['Top 2000'][i] == "No":
+        b = 0
+    else:
+        b = a
+    df1.at[i,'Bank 1 Sec % in total wallet Core'] = df1['Bank 1 Sector V3*Region*Product 1H22 Core'][i] / (df1['Bank 1 Sector V3*Region*Product 1H22 Core'][i] + df1['Bank 2 Sector V3*Region*Product 1H22 Core'][i] + b)
