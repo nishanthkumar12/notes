@@ -18,4 +18,27 @@ df1.loc(np.where((df1['Product Name']==df1['Product Name'][0]) & (df1['Region Na
 def net_neg(row):
     return row['Extrapolated Revenue Previous Delivery'] if row['Tail Previous Delivery'] < 0 else row['Tail Previous Delivery']
 
-df['Net Negative'] = df.apply(lambda row: row['Extrapolated Revenue Previous Delivery'] if row['Tail Previous Delivery'] < 0 else row['Tail Previous Delivery'], axis=1)
+
+
+
+for i in range(len(df1)):
+    if df1['Bank 1 Sector V3*Region*Product 1H22 Core'][i] > 0 and df1['Bank 2 Sector V3*Region*Product 1H22 Core'][i] == 0:
+        b = (df1['Bank 1 Sector V3*Region*Product 1H22 Core'][i] * 0.1) * (df1['Updated Tail'][i]/df1['Tail Aggregate Sector V3 Core'][i])
+    elif df1['Bank 2 Sector V3*Region*Product 1H22 Core'][i] > 0 and df1['Bank 1 Sector V3*Region*Product 1H22 Core'][i] == 0:
+        b = (df1['Bank 2 Sector V3*Region*Product 1H22 Core'][i] * 0.1) * (df1['Updated Tail'][i]/df1['Tail Aggregate Sector V3 Core'][i])
+    else:
+        b = 0
+        
+    if df1['Bank 1 Country HQ2*Region*Product 1H22 Core'][i] > 0 and df1['Bank 2 Country HQ2*Region*Product 1H22 Core'][i] == 0:
+        c = (df1['Bank 1 Country HQ2*Region*Product 1H22 Core'][i] * 0.1) * (df1['Updated Tail'][i]/df1['Tail Aggregate HQ2 Core'][i])
+    elif df1['Bank 2 Country HQ2*Region*Product 1H22 Core'][i] > 0 and df1['Bank 1 Country HQ2*Region*Product 1H22 Core'][i] == 0:
+        c = (df1['Bank 2 Country HQ2*Region*Product 1H22 Core'][i] * 0.1) * (df1['Updated Tail'][i]/df1['Tail Aggregate HQ2 Core'][i])
+    else:
+        c = 0
+    
+    if b > c:
+        df1.at[i,'Final Dummy based on sector & HQ Core'] = b
+    else:
+        df1.at[i,'Final Dummy based on sector & HQ Core'] = c
+
+
