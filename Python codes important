@@ -29,3 +29,6 @@ df_fin.to_excel(new, sheet_name = 'Checklist',index=False)
 new.close()
 
 print('{}{}\n'.format("Output file " + datestring + ' Check Report.xlsx ' + "has been saved in ",os.getcwd()))
+
+#Multi Index
+empty_column.columns = pd.MultiIndex.from_product([empty_column.columns, ['0']])
