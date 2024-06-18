@@ -1,3 +1,31 @@
 #Unstack and Stack (Similar to unpivot and pivot)
 df = df_en1_1.groupby(['Product','Place','Company']).sum().unstack(fill_value=0).stack().add(df_en2_2.groupby(['Product','Place','Company']).sum().unstack(fill_value=0).stack(),fill_value=0).reset_index()
 
+#Re-arranging columns
+cols = df7.columns.tolist()
+myorder = [2,1,0,3,4]
+cols = [cols[i] for i in myorder]
+df7 = df7[cols]
+
+df_en1_SOW['SOW (%)'] = round(df_en1_SOW['SOW (%)'].apply(lambda x:x*100),2)
+
+for index, row in df_fin.iterrows():
+    value = row['Fail output']
+    if value == 'OK':
+        df_fin['Result'][index] = 'Pass'
+    elif value == 'No Match':
+        df_fin['Result'][index] = 'Fail'
+    else:
+        pass
+
+#Time and Date
+from datetime import datetime
+datestring = datetime.strftime(datetime.now(), '%Y%m%d')
+
+#Excel writer 
+new = pd.ExcelWriter('{}'.format(datestring + ' IW FY22 Checklist Report.xlsx'), engine = 'xlsxwriter')
+df_fin1.to_excel(new, sheet_name = 'Summary',index=False)
+df_fin.to_excel(new, sheet_name = 'Checklist',index=False)
+new.close()
+
+print('{}{}\n'.format("Output file " + datestring + ' Check Report.xlsx ' + "has been saved in ",os.getcwd()))
