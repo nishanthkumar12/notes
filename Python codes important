@@ -32,3 +32,12 @@ print('{}{}\n'.format("Output file " + datestring + ' Check Report.xlsx ' + "has
 
 #Multi Index
 empty_column.columns = pd.MultiIndex.from_product([empty_column.columns, ['0']])
+
+for i in list(df_str['Sub_Level']):
+    if i not in list(df1.Product):
+        df1.loc[len(df1.index)] = [i, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+        print(i)
+
+new_header1 = df2.iloc[0] #grab the first row for the header
+df2 = df2[1:] #take the data less the header row
+df2.columns = new_header1 #set the header row as the df header
