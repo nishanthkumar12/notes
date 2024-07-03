@@ -41,3 +41,13 @@ for i in list(df_str['Sub_Level']):
 new_header1 = df2.iloc[0] #grab the first row for the header
 df2 = df2[1:] #take the data less the header row
 df2.columns = new_header1 #set the header row as the df header
+
+# Extract only 1H23 from text
+sheets = []
+for i in range(len(IW)):   
+    match = re.search(r'\[.*\](.*?)>', str(IW[i]))
+    if match:
+        extracted_text = match.group(1)
+        sheets.append(extracted_text)
+    else:
+        print("No match found")
