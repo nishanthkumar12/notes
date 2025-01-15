@@ -285,7 +285,7 @@ def crawl_and_download_pdf(base_url, search_keyword, download_folder):
 # Define parameters
 websites = [
     "https://www.stcatharines.ca/en/council-and-administration/budgets-and-financial-statements.aspx",  # Add more URLs as needed
-    "https://example.com"
+    "https://open.regina.ca/dataset/annual-reports-city-of-regina"
 ]
 search_keyword = "2023".lower()
 download_folder = "./downloads"
