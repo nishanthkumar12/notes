@@ -172,7 +172,7 @@ import requests
 from bs4 import BeautifulSoup
 import os
 
-def find_and_download_pdf(base_url, search_keyword, download_folder):
+def crawl_and_download_pdf(base_url, search_keyword, download_folder):
     try:
         # Send a GET request to the website
         response = requests.get(base_url)
@@ -184,41 +184,49 @@ def find_and_download_pdf(base_url, search_keyword, download_folder):
         # Find all <a> tags on the page
         links = soup.find_all('a', href=True)
 
-        # Loop through the links to find a PDF containing the search keyword
+        # Loop through the links to find a PDF link associated with the search keyword
         for link in links:
+            link_text = link.get_text(strip=True).lower()
             href = link['href']
-            if search_keyword in href.lower() and href.endswith('.pdf'):
-                pdf_url = href if href.startswith('http') else base_url + href
 
-                # Download the PDF file
-                response = requests.get(pdf_url)
-                response.raise_for_status()
+            # Check if the link text or href contains the search keyword
+            if search_keyword in link_text or search_keyword in href.lower():
+                if href.endswith('.pdf'):
+                    pdf_url = href if href.startswith('http') else base_url.rstrip('/') + '/' + href.lstrip('/')
 
-                # Ensure the download folder exists
-                os.makedirs(download_folder, exist_ok=True)
+                    # Confirm the PDF link before downloading
+                    print(f"Found PDF link: {pdf_url}")
 
-                # Define the file path
-                file_name = os.path.basename(pdf_url)
-                file_path = os.path.join(download_folder, file_name)
+                    # Download the PDF file
+                    response = requests.get(pdf_url)
+                    response.raise_for_status()
 
-                # Save the PDF file
-                with open(file_path, 'wb') as pdf_file:
-                    pdf_file.write(response.content)
+                    # Ensure the download folder exists
+                    os.makedirs(download_folder, exist_ok=True)
 
-                print(f"Downloaded: {file_path}")
-                return file_path
+                    # Define the file path
+                    file_name = os.path.basename(pdf_url)
+                    file_path = os.path.join(download_folder, file_name)
+
+                    # Save the PDF file
+                    with open(file_path, 'wb') as pdf_file:
+                        pdf_file.write(response.content)
+
+                    print(f"Downloaded: {file_path}")
+                    return file_path
 
         print("No matching PDF found.")
     except Exception as e:
         print(f"An error occurred: {e}")
 
 # Define parameters
-base_url = "https://example.com"  # Replace with the website URL
-search_keyword = "2023 annual report".lower()
+base_url = "https://open.regina.ca/dataset/annual-reports-city-of-regina"  # Replace with the website URL
+search_keyword = "2023".lower()
 download_folder = "./downloads"
 
 # Call the function
-find_and_download_pdf(base_url, search_keyword, download_folder)
+crawl_and_download_pdf(base_url, search_keyword, download_folder)
+
 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 
