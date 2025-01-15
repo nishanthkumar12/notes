@@ -165,3 +165,59 @@ driver.quit()
 print(f"All downloads are saved in: {download_dir}")
 
 ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# NEW GPT CODE - BEAUTIFUL SOUP 4
+
+import requests
+from bs4 import BeautifulSoup
+import os
+
+def find_and_download_pdf(base_url, search_keyword, download_folder):
+    try:
+        # Send a GET request to the website
+        response = requests.get(base_url)
+        response.raise_for_status()  # Raise an exception for HTTP errors
+
+        # Parse the HTML content of the page
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Find all <a> tags on the page
+        links = soup.find_all('a', href=True)
+
+        # Loop through the links to find a PDF containing the search keyword
+        for link in links:
+            href = link['href']
+            if search_keyword in href.lower() and href.endswith('.pdf'):
+                pdf_url = href if href.startswith('http') else base_url + href
+
+                # Download the PDF file
+                response = requests.get(pdf_url)
+                response.raise_for_status()
+
+                # Ensure the download folder exists
+                os.makedirs(download_folder, exist_ok=True)
+
+                # Define the file path
+                file_name = os.path.basename(pdf_url)
+                file_path = os.path.join(download_folder, file_name)
+
+                # Save the PDF file
+                with open(file_path, 'wb') as pdf_file:
+                    pdf_file.write(response.content)
+
+                print(f"Downloaded: {file_path}")
+                return file_path
+
+        print("No matching PDF found.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
+
+# Define parameters
+base_url = "https://example.com"  # Replace with the website URL
+search_keyword = "2023 annual report".lower()
+download_folder = "./downloads"
+
+# Call the function
+find_and_download_pdf(base_url, search_keyword, download_folder)
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
