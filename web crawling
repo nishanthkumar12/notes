@@ -221,3 +221,50 @@ download_folder = "./downloads"
 find_and_download_pdf(base_url, search_keyword, download_folder)
 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+
+# WEB CRAWLING TO SEARCH FOR 2023
+
+import requests
+from bs4 import BeautifulSoup
+
+def check_annual_report(base_url, keywords):
+    try:
+        # Send a GET request to the website
+        response = requests.get(base_url)
+        response.raise_for_status()  # Check for HTTP request errors
+
+        # Parse the HTML content
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Look for links in the website
+        links = soup.find_all('a', href=True)
+
+        # Search for the annual report in the links
+        for link in links:
+            href = link['href']
+            text = link.get_text(strip=True)
+            if any(keyword in text.lower() or keyword in href.lower() for keyword in keywords):
+                if href.startswith('/'):  # Handle relative URLs
+                    href = base_url.rstrip('/') + href
+                print(f"Found potential report link: {text} -> {href}")
+                return href
+
+        print("No matching annual report found.")
+        return None
+
+    except requests.RequestException as e:
+        print(f"Error accessing the website: {e}")
+        return None
+
+# Replace with the website URL you want to check
+website_url = "https://example.com"
+
+# Keywords to identify the 2023 annual report
+search_keywords = ["2023 annual report", "annual report 2023", "2023 report"]
+
+report_url = check_annual_report(website_url, search_keywords)
+if report_url:
+    print(f"Report found: {report_url}")
+else:
+    print("Report not found. Please check manually or refine the search.")
+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
