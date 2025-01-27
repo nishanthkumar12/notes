@@ -420,3 +420,68 @@ def main():
 if __name__ == "__main__":
     main()
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+GPT pagination code :-
+
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.chrome.service import Service
+from selenium.webdriver.common.keys import Keys
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
+import time
+import os
+
+# Set up ChromeDriver options
+options = webdriver.ChromeOptions()
+options.add_argument("--start-maximized")
+
+# Set up ChromeDriver path (modify this path if necessary)
+service = Service("chromedriver")
+
+# Initialize the WebDriver
+driver = webdriver.Chrome(service=service, options=options)
+
+try:
+    # Open the target URL
+    driver.get("https://www.stjohns.ca/en/city-hall/plans-reports-and-studies.aspx")
+
+    # Wait for the pagination links to load
+    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "pager")))
+
+    # Find and click the second page button in pagination
+    second_page = driver.find_element(By.LINK_TEXT, "2")
+    second_page.click()
+
+    # Wait for the second page to load
+    WebDriverWait(driver, 10).until(
+        EC.presence_of_element_located((By.CLASS_NAME, "view-content"))
+    )
+
+    # Search for the "Consolidated Financial Statements" link
+    pdf_link = None
+    links = driver.find_elements(By.TAG_NAME, "a")
+    for link in links:
+        if "Consolidated Financial Statements" in link.text:
+            pdf_link = link
+            break
+
+    if pdf_link:
+        # Get the URL of the PDF file
+        pdf_url = pdf_link.get_attribute("href")
+        print("PDF URL:", pdf_url)
+
+        # Download the PDF file
+        pdf_response = requests.get(pdf_url)
+        pdf_filename = os.path.basename(pdf_url)
+        with open(pdf_filename, "wb") as pdf_file:
+            pdf_file.write(pdf_response.content)
+        print(f"Downloaded: {pdf_filename}")
+    else:
+        print("PDF link not found on the second page.")
+
+finally:
+    # Close the browser
+    driver.quit()
+
++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
