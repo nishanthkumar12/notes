@@ -475,3 +475,82 @@ finally:
     driver.quit()
 
 +++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
+Dont delete- Best:-
+
+import requests
+from bs4 import BeautifulSoup
+import re
+import os
+import urllib.parse
+from urllib.parse import urljoin
+from urllib.request import urlretrieve
+
+# List of websites to check
+websites = [
+    "https://open.regina.ca/dataset/annual-reports-city-of-regina",
+    "https://www.sjhc.london.on.ca/about-us/our-performance#Financial",
+    "https://www.gov.nu.ca/en/department-finance/public-accounts"
+]
+
+# Define multiple patterns to match
+patterns = [
+    re.compile(r"2023", re.IGNORECASE),
+    re.compile(r"Financial Statements 2022-2023", re.IGNORECASE),
+    re.compile(r"2022-23 Public Accounts", re.IGNORECASE),
+    #re.compile(r"Financial Report 2023", re.IGNORECASE)
+]
+
+def check_and_download_report(url):
+    try:
+        # Send GET request to the website
+        response = requests.get(url)
+        if response.status_code != 200:
+            print(f"Failed to retrieve {url}. Status code: {response.status_code}")
+            return
+
+        # Parse the page content
+        soup = BeautifulSoup(response.text, 'html.parser')
+
+        # Find all links on the page
+        links = soup.find_all('a', href=True)
+        for link in links:
+            href = link['href']
+            link_title = link.get_text().strip()
+
+            # Check if any of the patterns match the link or the title
+            for pattern in patterns:
+                if pattern.search(href) or pattern.search(link_title):
+                    # Construct the full URL if it's a relative link
+                    full_url = urljoin(url, href)
+                    print(f"Found matching report link: {full_url} (Title: {link_title})")
+
+                    # Download the report (only handle PDF links in this example)
+                    if full_url.endswith('.pdf'):
+                        download_report(full_url)
+                        return
+
+        print(f"No matching report found on {url}.")
+    except Exception as e:
+        print(f"Error while processing {url}: {e}")
+
+def download_report(report_url):
+    try:
+        # Extract filename from the URL
+        file_name = os.path.basename(report_url)
+        print(f"Downloading {file_name}...")
+
+        # Download the report
+        urlretrieve(report_url, file_name)
+        print(f"Downloaded: {file_name}")
+    except Exception as e:
+        print(f"Failed to download the report from {report_url}: {e}")
+
+def main():
+    for website in websites:
+        check_and_download_report(website)
+
+if __name__ == "__main__":
+    main()
+
+++++++++++++++++++++++++
+
