@@ -81,7 +81,7 @@ canvas.create_text(
     anchor="nw",
     text="NK",
     fill="#FFFFFF",
-    font=("Inter SemiBold", 10 * -1)
+    font=("Inter Bold", 11 * -1)
 )
 
 # Left white area
