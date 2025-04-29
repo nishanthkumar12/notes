@@ -52,7 +52,7 @@ canvas.create_rectangle(
     outline="")
 
 canvas.create_text(
-    442.0,
+    472.0,
     59.0,
     anchor="nw",
     text="Select Crawler",
