@@ -1,52 +1,63 @@
-from base_crawler import BaseCrawler
 from selenium.webdriver.common.by import By
 
-class XPathCrawler(BaseCrawler):
-    def crawl(self, xpath):
+class XPathCrawler:
+    def __init__(self, driver):
+        self.driver = driver
+
+    def crawl(self, param, download_file):
         try:
-            element = self.driver.find_element(By.XPATH, xpath)
+            element = self.driver.find_element(By.XPATH, param)
             href = element.get_attribute("href")
             if href:
-                print(f"Found file at XPath: {href}")
-                self.download_file(href)
+                print(f"[XPath] Found: {href}")
+                download_file(href)
             else:
                 print("No href found at provided XPath.")
         except Exception as e:
-            print(f"XPath error: {e}")
+            print(f"[XPath] Error: {e}")
 
 _________________________________________________________________
-from base_crawler import BaseCrawler
 from selenium.webdriver.common.by import By
 
-class ExtensionCrawler(BaseCrawler):
-    def crawl(self, extension=".pdf"):
+class ExtensionCrawler:
+    def __init__(self, driver):
+        self.driver = driver
+
+    def crawl(self, param, download_file):
         links = self.driver.find_elements(By.TAG_NAME, "a")
         for link in links:
             href = link.get_attribute("href")
-            if href and href.lower().endswith(extension):
-                print(f"Found file with extension: {href}")
-                self.download_file(href)
+            if href and href.lower().endswith(param):
+                print(f"[Extension] Found: {href}")
+                download_file(href)
                 break
 ________________________________________________________________
-from base_crawler import BaseCrawler
 from selenium.webdriver.common.by import By
 
-class KeywordCrawler(BaseCrawler):
-    def crawl(self, keyword):
-        keyword = keyword.lower()
+class KeywordCrawler:
+    def __init__(self, driver):
+        self.driver = driver
+
+    def crawl(self, param, download_file):
+        param = param.lower()
         links = self.driver.find_elements(By.TAG_NAME, "a")
         for link in links:
-            text = link.text.lower()
             href = link.get_attribute("href")
-            if keyword in text and href:
-                print(f"Found file with keyword: {href}")
-                self.download_file(href)
+            text = link.text.lower()
+            if param in text and href:
+                print(f"[Keyword] Found: {href}")
+                download_file(href)
                 break
 _________________________________________________________________
-from selenium import webdriver
 import os
 import time
 import requests
+from selenium import webdriver
+
+from xpath import XPathCrawler
+from extension import ExtensionCrawler
+from keyword import KeywordCrawler
+
 
 class BaseCrawler:
     def __init__(self, url, download_dir="downloads"):
@@ -54,9 +65,9 @@ class BaseCrawler:
         self.download_dir = os.path.abspath(download_dir)
         os.makedirs(self.download_dir, exist_ok=True)
 
-        chrome_options = webdriver.ChromeOptions()
-        chrome_options.add_argument("--headless")
-        self.driver = webdriver.Chrome(options=chrome_options)
+        options = webdriver.ChromeOptions()
+        options.add_argument("--headless")
+        self.driver = webdriver.Chrome(options=options)
         self.driver.get(self.url)
         time.sleep(3)
 
@@ -66,40 +77,34 @@ class BaseCrawler:
             response = requests.get(href)
             with open(filename, "wb") as f:
                 f.write(response.content)
-            print(f"Downloaded: {filename}")
+            print(f"[Download] Saved to: {filename}")
         except Exception as e:
-            print(f"Failed to download {href}: {e}")
+            print(f"[Download] Failed: {e}")
 
-    def close(self):
-        self.driver.quit()
+    def run(self, mode, param):
+        try:
+            if mode == "xpath":
+                crawler = XPathCrawler(self.driver)
+            elif mode == "extension":
+                crawler = ExtensionCrawler(self.driver)
+            elif mode == "keyword":
+                crawler = KeywordCrawler(self.driver)
+            else:
+                print("Invalid mode. Use 'xpath', 'extension', or 'keyword'")
+                return
+
+            crawler.crawl(param, self.download_file)
+        finally:
+            self.driver.quit()
+
+
+# Example usage
+if __name__ == "__main__":
+    # Replace these with actual input or use argparse
+    mode = "keyword"  # 'xpath' | 'extension' | 'keyword'
+    url = "https://example.com"
+    param = "2024 annual report"  # or XPath, or ".pdf"
+
+    base = BaseCrawler(url)
+    base.run(mode, param)
 __________________________________________________________________________
-main.py
--------
-
-from xpath_crawler import XPathCrawler
-from extension_crawler import ExtensionCrawler
-from keyword_crawler import KeywordCrawler
-
-def run_crawler(mode, url, param):
-    crawler = None
-    try:
-        if mode == "xpath":
-            crawler = XPathCrawler(url)
-            crawler.crawl(param)
-        elif mode == "extension":
-            crawler = ExtensionCrawler(url)
-            crawler.crawl(param)
-        elif mode == "keyword":
-            crawler = KeywordCrawler(url)
-            crawler.crawl(param)
-        else:
-            print("Invalid mode. Use: xpath | extension | keyword")
-    finally:
-        if crawler:
-            crawler.close()
-
-# Example usage:
-# run_crawler("xpath", "https://example.com", "//a[contains(text(), 'Annual Report')]")
-# run_crawler("extension", "https://example.com", ".pdf")
-# run_crawler("keyword", "https://example.com", "2024 annual report")
-____________________________________________________________________________________
