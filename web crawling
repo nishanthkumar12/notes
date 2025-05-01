@@ -108,3 +108,64 @@ if __name__ == "__main__":
     base = BaseCrawler(url)
     base.run(mode, param)
 __________________________________________________________________________
+
+New Base Crawler:
+-----------------
+import os
+import time
+import requests
+from selenium import webdriver
+
+from xpath import XPathCrawler
+from extension import ExtensionCrawler
+from keyword import KeywordCrawler
+
+from crawler_request_dto import CrawlRequestDTO
+
+
+class BaseCrawler:
+    def __init__(self, request: CrawlRequestDTO, download_dir="downloads"):
+        self.url = str(request.bbase_url)
+        self.content_filter = request.content_filter
+        self.download_dir = os.path.abspath(download_dir)
+        os.makedirs(self.download_dir, exist_ok=True)
+
+        options = webdriver.ChromeOptions()
+        options.add_argument("--headless")
+        self.driver = webdriver.Chrome(options=options)
+        self.driver.get(self.url)
+        time.sleep(3)
+
+    def download_file(self, href):
+        try:
+            filename = os.path.join(self.download_dir, href.split("/")[-1])
+            response = requests.get(href)
+            with open(filename, "wb") as f:
+                f.write(response.content)
+            print(f"[Download] Saved to: {filename}")
+        except Exception as e:
+            print(f"[Download] Failed: {e}")
+
+    def run(self):
+        try:
+            for filter in self.content_filter:
+                # Handle XPath
+                if filter.xpath:
+                    crawler = XPathCrawler(self.driver)
+                    for xpath_expr in filter.xpath:
+                        crawler.crawl(xpath_expr, self.download_file)
+
+                # Handle file extension
+                if filter.file_extension:
+                    crawler = ExtensionCrawler(self.driver)
+                    for ext in filter.file_extension:
+                        crawler.crawl(ext, self.download_file)
+
+                # Handle keyword
+                if filter.links_contains_text:
+                    crawler = KeywordCrawler(self.driver)
+                    for keyword in filter.links_contains_text:
+                        crawler.crawl(keyword, self.download_file)
+        finally:
+            self.driver.quit()
+________________________________________________________________________________
