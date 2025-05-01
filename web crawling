@@ -1,556 +1,105 @@
-# Below is a Python script that handles multiple websites using Selenium and Python. Each website's scraping logic is stored in a function.
-from selenium import webdriver
+from base_crawler import BaseCrawler
 from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
+
+class XPathCrawler(BaseCrawler):
+    def crawl(self, xpath):
+        try:
+            element = self.driver.find_element(By.XPATH, xpath)
+            href = element.get_attribute("href")
+            if href:
+                print(f"Found file at XPath: {href}")
+                self.download_file(href)
+            else:
+                print("No href found at provided XPath.")
+        except Exception as e:
+            print(f"XPath error: {e}")
+
+_________________________________________________________________
+from base_crawler import BaseCrawler
+from selenium.webdriver.common.by import By
+
+class ExtensionCrawler(BaseCrawler):
+    def crawl(self, extension=".pdf"):
+        links = self.driver.find_elements(By.TAG_NAME, "a")
+        for link in links:
+            href = link.get_attribute("href")
+            if href and href.lower().endswith(extension):
+                print(f"Found file with extension: {href}")
+                self.download_file(href)
+                break
+________________________________________________________________
+from base_crawler import BaseCrawler
+from selenium.webdriver.common.by import By
+
+class KeywordCrawler(BaseCrawler):
+    def crawl(self, keyword):
+        keyword = keyword.lower()
+        links = self.driver.find_elements(By.TAG_NAME, "a")
+        for link in links:
+            text = link.text.lower()
+            href = link.get_attribute("href")
+            if keyword in text and href:
+                print(f"Found file with keyword: {href}")
+                self.download_file(href)
+                break
+_________________________________________________________________
+from selenium import webdriver
+import os
 import time
+import requests
 
-# List of websites and their configurations
-websites = [
-    {
-        "name": "Site A",
-        "url": "https://www.example-a.com/financial-reports",
-        "report_keyword": "Quarterly Report",  # Keyword to search for
-    },
-    {
-        "name": "Site B",
-        "url": "https://www.example-b.com/reports",
-        "report_keyword": "Financial Statement",
-    },
-    # Add more sites here
-]
+class BaseCrawler:
+    def __init__(self, url, download_dir="downloads"):
+        self.url = url
+        self.download_dir = os.path.abspath(download_dir)
+        os.makedirs(self.download_dir, exist_ok=True)
 
-# Path to ChromeDriver
-driver_path = "path_to_chromedriver"  # Replace with the path to your ChromeDriver
-service = Service(driver_path)
-driver = webdriver.Chrome(service=service)
+        chrome_options = webdriver.ChromeOptions()
+        chrome_options.add_argument("--headless")
+        self.driver = webdriver.Chrome(options=chrome_options)
+        self.driver.get(self.url)
+        time.sleep(3)
 
-def scrape_site(site_config):
-    """Scrape a specific site for reports."""
-    print(f"Scraping {site_config['name']}...")
-    driver.get(site_config["url"])
-    time.sleep(5)  # Adjust based on page load time
+    def download_file(self, href):
+        try:
+            filename = os.path.join(self.download_dir, href.split("/")[-1])
+            response = requests.get(href)
+            with open(filename, "wb") as f:
+                f.write(response.content)
+            print(f"Downloaded: {filename}")
+        except Exception as e:
+            print(f"Failed to download {href}: {e}")
 
+    def close(self):
+        self.driver.quit()
+__________________________________________________________________________
+main.py
+-------
+
+from xpath_crawler import XPathCrawler
+from extension_crawler import ExtensionCrawler
+from keyword_crawler import KeywordCrawler
+
+def run_crawler(mode, url, param):
+    crawler = None
     try:
-        # Search for the keyword in links
-        elements = driver.find_elements(By.PARTIAL_LINK_TEXT, site_config["report_keyword"])
-        if elements:
-            print(f"Reports found on {site_config['name']}:")
-            for element in elements:
-                report_title = element.text
-                report_link = element.get_attribute("href")
-                print(f"- {report_title}: {report_link}")
-                # Optional: Download the report if it's a file link
-                if report_link.endswith(".pdf"):  # Adjust for file types
-                    driver.get(report_link)
-                    print(f"Downloading {report_title}...")
-                    time.sleep(5)  # Wait for download
+        if mode == "xpath":
+            crawler = XPathCrawler(url)
+            crawler.crawl(param)
+        elif mode == "extension":
+            crawler = ExtensionCrawler(url)
+            crawler.crawl(param)
+        elif mode == "keyword":
+            crawler = KeywordCrawler(url)
+            crawler.crawl(param)
         else:
-            print(f"No reports found on {site_config['name']}.")
-    except Exception as e:
-        print(f"Error scraping {site_config['name']}: {e}")
-
-# Loop through websites and scrape each
-for site in websites:
-    scrape_site(site)
-
-# Close the browser
-driver.quit()
-
-# To download the file as csv                 -----------------
-import csv
-
-results = []
-
-def scrape_site(site_config):
-    """Scrape a specific site for reports."""
-    global results
-    print(f"Scraping {site_config['name']}...")
-    driver.get(site_config["url"])
-    time.sleep(5)
-
-    try:
-        elements = driver.find_elements(By.PARTIAL_LINK_TEXT, site_config["report_keyword"])
-        if elements:
-            for element in elements:
-                report_title = element.text
-                report_link = element.get_attribute("href")
-                results.append({
-                    "site": site_config["name"],
-                    "title": report_title,
-                    "link": report_link,
-                })
-    except Exception as e:
-        print(f"Error scraping {site_config['name']}: {e}")
-
-# Save results to CSV
-with open("quarterly_reports.csv", "w", newline="", encoding="utf-8") as file:
-    writer = csv.DictWriter(file, fieldnames=["site", "title", "link"])
-    writer.writeheader()
-    writer.writerows(results)
-
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-# Same as above, but to download pdf files
-
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.chrome.options import Options
-import time
-import os
-
-# Path to ChromeDriver
-driver_path = "path_to_chromedriver"  # Replace with the actual path to your ChromeDriver
-
-# Set up browser options
-download_dir = "path_to_download_directory"  # Replace with your preferred download directory
-os.makedirs(download_dir, exist_ok=True)  # Create the directory if it doesn't exist
-
-chrome_options = Options()
-chrome_options.add_experimental_option("prefs", {
-    "download.default_directory": download_dir,  # Set default download directory
-    "download.prompt_for_download": False,      # Disable download prompts
-    "plugins.always_open_pdf_externally": True, # Open PDFs directly without the browser viewer
-})
-service = Service(driver_path)
-driver = webdriver.Chrome(service=service, options=chrome_options)
-
-# List of websites and configurations
-websites = [
-    {
-        "name": "Site A",
-        "url": "https://www.example-a.com/financial-reports",
-        "report_keyword": "Quarterly Report",  # Keyword to search for
-    },
-    {
-        "name": "Site B",
-        "url": "https://www.example-b.com/reports",
-        "report_keyword": "Financial Statement",
-    },
-    # Add more websites here
-]
-
-def scrape_and_download_pdfs(site_config):
-    """Scrape a site for PDFs and download them."""
-    print(f"Scraping {site_config['name']}...")
-    driver.get(site_config["url"])
-    time.sleep(5)  # Wait for the page to load
-
-    try:
-        # Find all links matching the keyword
-        elements = driver.find_elements(By.PARTIAL_LINK_TEXT, site_config["report_keyword"])
-        if elements:
-            print(f"Found reports on {site_config['name']}:")
-            for element in elements:
-                report_title = element.text
-                report_link = element.get_attribute("href")
-
-                # Check if the link points to a PDF
-                if report_link and report_link.endswith(".pdf"):
-                    print(f"Downloading {report_title} from {report_link}...")
-                    driver.get(report_link)  # Navigate to the PDF link to trigger download
-                    time.sleep(5)  # Wait for the download to complete
-        else:
-            print(f"No reports found on {site_config['name']}.")
-    except Exception as e:
-        print(f"Error scraping {site_config['name']}: {e}")
-
-# Loop through the websites and scrape each
-for site in websites:
-    scrape_and_download_pdfs(site)
-
-# Close the browser
-driver.quit()
-
-print(f"All downloads are saved in: {download_dir}")
-
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-# NEW GPT CODE - BEAUTIFUL SOUP 4
-
-import requests
-from bs4 import BeautifulSoup
-import os
-
-def crawl_and_download_pdf(base_url, search_keyword, download_folder):
-    try:
-        # Send a GET request to the website
-        response = requests.get(base_url)
-        response.raise_for_status()  # Raise an exception for HTTP errors
-
-        # Parse the HTML content of the page
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        # Find all <a> tags on the page
-        links = soup.find_all('a', href=True)
-
-        # Loop through the links to find a PDF link associated with the search keyword
-        for link in links:
-            link_text = link.get_text(strip=True).lower()
-            href = link['href']
-
-            # Check if the link text or href contains the search keyword
-            if search_keyword in link_text or search_keyword in href.lower():
-                if href.endswith('.pdf'):
-                    pdf_url = href if href.startswith('http') else base_url.rstrip('/') + '/' + href.lstrip('/')
-
-                    # Confirm the PDF link before downloading
-                    print(f"Found PDF link: {pdf_url}")
-
-                    # Download the PDF file
-                    response = requests.get(pdf_url)
-                    response.raise_for_status()
-
-                    # Ensure the download folder exists
-                    os.makedirs(download_folder, exist_ok=True)
-
-                    # Define the file path
-                    file_name = os.path.basename(pdf_url)
-                    file_path = os.path.join(download_folder, file_name)
-
-                    # Save the PDF file
-                    with open(file_path, 'wb') as pdf_file:
-                        pdf_file.write(response.content)
-
-                    print(f"Downloaded: {file_path}")
-                    return file_path
-
-        print("No matching PDF found.")
-    except Exception as e:
-        print(f"An error occurred: {e}")
-
-# Define parameters
-base_url = "https://open.regina.ca/dataset/annual-reports-city-of-regina"  # Replace with the website URL
-search_keyword = "2023".lower()
-download_folder = "./downloads"
-
-# Call the function
-crawl_and_download_pdf(base_url, search_keyword, download_folder)
-
-
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-# SAME AS ABOVE BUT FOR MULTIPLE WEBSITES
-
-import requests
-from bs4 import BeautifulSoup
-import os
-
-def crawl_and_download_pdf(base_url, search_keyword, download_folder):
-    try:
-        # Send a GET request to the website
-        response = requests.get(base_url)
-        response.raise_for_status()  # Raise an exception for HTTP errors
-
-        # Parse the HTML content of the page
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        # Find all <a> tags on the page
-        links = soup.find_all('a', href=True)
-
-        # Loop through the links to find a PDF link associated with the search keyword
-        for link in links:
-            link_text = link.get_text(strip=True).lower()
-            href = link['href']
-
-            # Check if the link text or href contains the search keyword
-            if search_keyword in link_text or search_keyword in href.lower():
-                if href.endswith('.pdf'):
-                    pdf_url = href if href.startswith('http') else base_url.rstrip('/') + '/' + href.lstrip('/')
-
-                    # Confirm the PDF link before downloading
-                    print(f"Found PDF link: {pdf_url}")
-
-                    # Download the PDF file
-                    response = requests.get(pdf_url)
-                    response.raise_for_status()
-
-                    # Ensure the download folder exists
-                    os.makedirs(download_folder, exist_ok=True)
-
-                    # Define the file path
-                    file_name = os.path.basename(pdf_url)
-                    file_path = os.path.join(download_folder, file_name)
-
-                    # Save the PDF file
-                    with open(file_path, 'wb') as pdf_file:
-                        pdf_file.write(response.content)
-
-                    print(f"Downloaded: {file_path}")
-                    return file_path
-
-        print("No matching PDF found on", base_url)
-    except Exception as e:
-        print(f"An error occurred while processing {base_url}: {e}")
-
-# Define parameters
-websites = [
-    "https://www.stcatharines.ca/en/council-and-administration/budgets-and-financial-statements.aspx",  # Add more URLs as needed
-    "https://open.regina.ca/dataset/annual-reports-city-of-regina"
-]
-search_keyword = "2023".lower()
-download_folder = "./downloads"
-
-# Call the function for each website
-for website in websites:
-    print(f"Checking website: {website}")
-    crawl_and_download_pdf(website, search_keyword, download_folder)
-
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-# WEB CRAWLING TO SEARCH FOR 2023
-
-import requests
-from bs4 import BeautifulSoup
-
-def check_annual_report(base_url, keywords):
-    try:
-        # Send a GET request to the website
-        response = requests.get(base_url)
-        response.raise_for_status()  # Check for HTTP request errors
-
-        # Parse the HTML content
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        # Look for links in the website
-        links = soup.find_all('a', href=True)
-
-        # Search for the annual report in the links
-        for link in links:
-            href = link['href']
-            text = link.get_text(strip=True)
-            if any(keyword in text.lower() or keyword in href.lower() for keyword in keywords):
-                if href.startswith('/'):  # Handle relative URLs
-                    href = base_url.rstrip('/') + href
-                print(f"Found potential report link: {text} -> {href}")
-                return href
-
-        print("No matching annual report found.")
-        return None
-
-    except requests.RequestException as e:
-        print(f"Error accessing the website: {e}")
-        return None
-
-# Replace with the website URL you want to check
-website_url = "https://example.com"
-
-# Keywords to identify the 2023 annual report
-search_keywords = ["2023 annual report", "annual report 2023", "2023 report"]
-
-report_url = check_annual_report(website_url, search_keywords)
-if report_url:
-    print(f"Report found: {report_url}")
-else:
-    print("Report not found. Please check manually or refine the search.")
-++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-
-#Latest
-
-import requests
-from bs4 import BeautifulSoup
-import re
-import os
-from urllib.parse import urljoin
-from urllib.request import urlretrieve
-
-# List of websites to check
-websites = [
-    "https://www.example1.com",
-    "https://www.example2.com",
-    "https://www.example3.com"
-]
-
-# Define multiple patterns to match
-patterns = [
-    re.compile(r"2023", re.IGNORECASE),
-    re.compile(r"Annual Report 2023", re.IGNORECASE),
-    re.compile(r"Report 2023", re.IGNORECASE),
-    re.compile(r"Financial Report 2023", re.IGNORECASE)
-]
-
-def check_and_download_report(url):
-    try:
-        # Send GET request to the website
-        response = requests.get(url)
-        if response.status_code != 200:
-            print(f"Failed to retrieve {url}. Status code: {response.status_code}")
-            return
-
-        # Parse the page content
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        # Find all links on the page
-        links = soup.find_all('a', href=True)
-        for link in links:
-            href = link['href']
-            link_title = link.get_text().strip()
-
-            # Check if any of the patterns match the link or the title
-            for pattern in patterns:
-                if pattern.search(href) or pattern.search(link_title):
-                    # Construct the full URL if it's a relative link
-                    full_url = urljoin(url, href)
-                    print(f"Found matching report link: {full_url} (Title: {link_title})")
-
-                    # Download the report (only handle PDF links in this example)
-                    if full_url.endswith('.pdf'):
-                        download_report(full_url)
-                        return
-
-        print(f"No matching report found on {url}.")
-    except Exception as e:
-        print(f"Error while processing {url}: {e}")
-
-def download_report(report_url):
-    try:
-        # Extract filename from the URL
-        file_name = os.path.basename(report_url)
-        print(f"Downloading {file_name}...")
-
-        # Download the report
-        urlretrieve(report_url, file_name)
-        print(f"Downloaded: {file_name}")
-    except Exception as e:
-        print(f"Failed to download the report from {report_url}: {e}")
-
-def main():
-    for website in websites:
-        check_and_download_report(website)
-
-if __name__ == "__main__":
-    main()
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-GPT pagination code :-
-
-from selenium import webdriver
-from selenium.webdriver.common.by import By
-from selenium.webdriver.chrome.service import Service
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions as EC
-import requests
-import os
-
-# Set up ChromeDriver options
-options = webdriver.ChromeOptions()
-options.add_argument("--start-maximized")
-
-# Set up ChromeDriver path (modify this path if necessary)
-service = Service("chromedriver")
-
-# Initialize the WebDriver
-driver = webdriver.Chrome(service=service, options=options)
-
-try:
-    # Open the target URL
-    driver.get("https://www.stjohns.ca/en/city-hall/plans-reports-and-studies.aspx")
-
-    # Wait for the page to load
-    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.XPATH, "//a[text()='2']")))
-
-    # Find and click the link for the second page using XPath
-    second_page_link = driver.find_element(By.XPATH, "//a[text()='2']")
-    second_page_link.click()
-
-    # Wait for the second page content to load
-    WebDriverWait(driver, 10).until(EC.presence_of_element_located((By.CLASS_NAME, "view-content")))
-
-    # Locate the "Consolidated Financial Statements" link using XPath
-    pdf_link = None
-    pdf_link_element = driver.find_element(By.XPATH, "//a[contains(text(), 'Consolidated Financial Statements')]")
-    if pdf_link_element:
-        pdf_link = pdf_link_element.get_attribute("href")
-        print("PDF URL:", pdf_link)
-
-        # Download the PDF file using requests
-        pdf_response = requests.get(pdf_link)
-        pdf_filename = os.path.basename(pdf_link)
-        with open(pdf_filename, "wb") as pdf_file:
-            pdf_file.write(pdf_response.content)
-        print(f"Downloaded: {pdf_filename}")
-    else:
-        print("PDF link not found on the second page.")
-
-finally:
-    # Close the browser
-    driver.quit()
-
-+++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
-Dont delete- Best:-
-
-import requests
-from bs4 import BeautifulSoup
-import re
-import os
-import urllib.parse
-from urllib.parse import urljoin
-from urllib.request import urlretrieve
-
-# List of websites to check
-websites = [
-    "https://open.regina.ca/dataset/annual-reports-city-of-regina",
-    "https://www.sjhc.london.on.ca/about-us/our-performance#Financial",
-    "https://www.gov.nu.ca/en/department-finance/public-accounts"
-]
-
-# Define multiple patterns to match
-patterns = [
-    re.compile(r"2023", re.IGNORECASE),
-    re.compile(r"Financial Statements 2022-2023", re.IGNORECASE),
-    re.compile(r"2022-23 Public Accounts", re.IGNORECASE),
-    #re.compile(r"Financial Report 2023", re.IGNORECASE)
-]
-
-def check_and_download_report(url):
-    try:
-        # Send GET request to the website
-        response = requests.get(url)
-        if response.status_code != 200:
-            print(f"Failed to retrieve {url}. Status code: {response.status_code}")
-            return
-
-        # Parse the page content
-        soup = BeautifulSoup(response.text, 'html.parser')
-
-        # Find all links on the page
-        links = soup.find_all('a', href=True)
-        for link in links:
-            href = link['href']
-            link_title = link.get_text().strip()
-
-            # Check if any of the patterns match the link or the title
-            for pattern in patterns:
-                if pattern.search(href) or pattern.search(link_title):
-                    # Construct the full URL if it's a relative link
-                    full_url = urljoin(url, href)
-                    print(f"Found matching report link: {full_url} (Title: {link_title})")
-
-                    # Download the report (only handle PDF links in this example)
-                    if full_url.endswith('.pdf'):
-                        download_report(full_url)
-                        return
-
-        print(f"No matching report found on {url}.")
-    except Exception as e:
-        print(f"Error while processing {url}: {e}")
-
-def download_report(report_url):
-    try:
-        # Extract filename from the URL
-        file_name = os.path.basename(report_url)
-        print(f"Downloading {file_name}...")
-
-        # Download the report
-        urlretrieve(report_url, file_name)
-        print(f"Downloaded: {file_name}")
-    except Exception as e:
-        print(f"Failed to download the report from {report_url}: {e}")
-
-def main():
-    for website in websites:
-        check_and_download_report(website)
-
-if __name__ == "__main__":
-    main()
-
-++++++++++++++++++++++++
-
+            print("Invalid mode. Use: xpath | extension | keyword")
+    finally:
+        if crawler:
+            crawler.close()
+
+# Example usage:
+# run_crawler("xpath", "https://example.com", "//a[contains(text(), 'Annual Report')]")
+# run_crawler("extension", "https://example.com", ".pdf")
+# run_crawler("keyword", "https://example.com", "2024 annual report")
+____________________________________________________________________________________
