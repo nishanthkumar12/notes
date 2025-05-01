@@ -169,3 +169,22 @@ class BaseCrawler:
         finally:
             self.driver.quit()
 ________________________________________________________________________________
+main.py
+-------
+from crawler_request_dto import CrawlRequestDTO, ContentFilter
+from base_crawler import BaseCrawler
+
+request = CrawlRequestDTO(
+    bbase_url="https://example.com",
+    content_filter=[
+        ContentFilter(
+            file_extension=[".pdf"],
+            xpath=["//a[contains(text(),'2024')]"],
+            links_contains_text=["2024 annual report"]
+        )
+    ]
+)
+
+crawler = BaseCrawler(request)
+crawler.run()
+___________________________________________________________________________________
