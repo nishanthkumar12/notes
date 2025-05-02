@@ -322,22 +322,20 @@ class BaseCrawler:
 
 ________________________________________________________________________________________
 
-Example usage:
+Fat API - main.py
+----
+from fastapi import FastAPI, HTTPException
 from dto.crawler_request_dto import CrawlRequestDTO
-from dto.content_filter_dto import ContentFilter
 from base_crawler import BaseCrawler
 
-request = CrawlRequestDTO(
-    bbase_url="https://example.com",
-    content_filter=[
-        ContentFilter(
-            file_extension=[".pdf"],
-            xpath=["//a[contains(text(),'Annual')]"],
-            links_contains_text=["2024 annual report"]
-        )
-    ]
-)
+app = FastAPI(title="Web Crawler API", version="1.0")
 
-crawler = BaseCrawler(request)
-crawler.run()
 
+@app.post("/crawl")
+async def crawl_site(request: CrawlRequestDTO):
+    try:
+        crawler = BaseCrawler(request)
+        crawler.run()
+        return {"message": "Crawling completed successfully."}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
