@@ -418,3 +418,42 @@ canvas.create_image(370, 30, image=crisil_logo_tk, anchor="ne")
 window.resizable(False, False)
 window.mainloop()
 
+============================================================Optimization====================================================================
+Add this near the top of your script:
+
+import importlib
+import os
+
+# Dynamically load all crawler modules from `crawlers/` folder
+def load_crawlers():
+    crawlers = {}
+    crawlers_path = Path(__file__).parent / "crawlers"
+    for filename in os.listdir(crawlers_path):
+        if filename.startswith("crawler_") and filename.endswith(".py"):
+            name = filename[:-3]  # remove ".py"
+            try:
+                module = importlib.import_module(f"crawlers.{name}")
+                if hasattr(module, "run"):
+                    label = name.replace("crawler_", "Crawler ").title()
+                    crawlers[label] = module.run
+            except Exception as e:
+                print(f"Failed to import {name}: {e}")
+    return crawlers
+
+Replace your existing crawler_options dictionary with:
+
+crawler_functions = load_crawlers()
+crawler_var = ttk.Combobox(window, font=("Inter", 12), state="readonly")
+crawler_var['values'] = list(crawler_functions.keys())
+
+Update run_selected_crawler to use:
+
+selected = crawler_var.get()
+if selected in crawler_functions:
+    crawler_functions[selected]()
+
+And in run_all_crawlers():
+
+for name, func in crawler_functions.items():
+    update_status(f"Running {name}...")
+    func()
