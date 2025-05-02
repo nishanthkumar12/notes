@@ -238,3 +238,183 @@ canvas.create_image(370, 30, image=crisil_logo_tk, anchor="ne")
 
 window.resizable(False, False)
 window.mainloop()
+
+============================================================Advanced - Status bar/Indicator========================================================================
+from pathlib import Path
+from tkinter import Tk, Canvas, Button, PhotoImage, messagebox, StringVar, Label
+from tkinter import ttk
+from PIL import Image, ImageTk
+import threading
+
+# Import your crawlers here
+from Crawler_1 import Crawler_1 as run_crawler1
+from Crawler_2 import Crawler_2 as run_crawler2
+from Crawler_3 import Crawler_3 as run_crawler3
+
+OUTPUT_PATH = Path(__file__).parent
+ASSETS_PATH = OUTPUT_PATH / Path(r"D:\build\assets\frame0")
+
+
+def relative_to_assets(path: str) -> Path:
+    return ASSETS_PATH / Path(path)
+
+def update_status(message):
+    status_var.set(message)
+    status_label.update_idletasks()
+
+def update_progress(value):
+    progress_var.set(value)
+    progress_bar.update_idletasks()
+
+def threaded(func):
+    def wrapper(*args, **kwargs):
+        threading.Thread(target=func, args=args, kwargs=kwargs).start()
+    return wrapper
+
+@threaded
+def run_selected_crawler(crawler_number):
+    try:
+        update_status("Running selected crawler...")
+        update_progress(10)
+        if crawler_number == 1:
+            run_crawler1()
+            update_progress(100)
+            messagebox.showinfo("Success", "Crawler 1 success")
+        elif crawler_number == 2:
+            run_crawler2()
+            update_progress(100)
+            messagebox.showinfo("Success", "Crawler 2 success")
+        elif crawler_number == 3:
+            run_crawler3()
+            update_progress(100)
+            messagebox.showinfo("Success", "Crawler 3 success")
+        else:
+            messagebox.showerror("Error", "Invalid Selection")
+        update_status("Idle")
+        update_progress(0)
+    except Exception as e:
+        update_status("Error")
+        update_progress(0)
+        messagebox.showerror("Error", f"Error occurred: {e}")
+
+@threaded
+def run_all_crawlers():
+    try:
+        update_status("Running all crawlers...")
+        update_progress(10)
+        run_crawler1()
+        update_progress(40)
+        run_crawler2()
+        update_progress(70)
+        run_crawler3()
+        update_progress(100)
+        messagebox.showinfo("Success", "All crawlers run successfully")
+        update_status("Idle")
+        update_progress(0)
+    except Exception as e:
+        update_status("Error")
+        update_progress(0)
+        messagebox.showerror("Error", f"Error: {e}")
+
+
+window = Tk()
+window.geometry("700x400")
+window.configure(bg="#FFFFFF")
+
+canvas = Canvas(
+    window,
+    bg="#FFFFFF",
+    height=400,
+    width=700,
+    bd=0,
+    highlightthickness=0,
+    relief="ridge"
+)
+canvas.place(x=0, y=0)
+
+canvas.create_rectangle(387.0, 0.0, 700.0, 400.0, fill="#A72929", outline="")
+
+# Dropdown
+crawler_options = {"Crawler1": 1, "Crawler2": 2, "Crawler3": 3}
+crawler_var = ttk.Combobox(window, font=("Inter", 12), state="readonly")
+crawler_var['values'] = list(crawler_options.keys())
+crawler_var.set("Select a Crawler")
+crawler_var.place(x=446, y=127, width=214, height=33)
+
+# Heading
+canvas.create_text(
+    472.0,
+    59.0,
+    anchor="nw",
+    text="Select Crawler",
+    fill="#FFFFFF",
+    font=("Inter Bold", 24 * -1)
+)
+
+# Button 1: Run Selected Crawler
+button_image_1 = PhotoImage(file=relative_to_assets("button_1.png"))
+button_image_hover_1 = PhotoImage(file=relative_to_assets("button_hover_1.png"))
+
+button_1 = Button(
+    image=button_image_1,
+    borderwidth=0,
+    highlightthickness=0,
+    command=lambda: run_selected_crawler(crawler_options[crawler_var.get()]) if crawler_var.get() in crawler_options else messagebox.showerror("Error", "Please select a crawler."),
+    relief="flat"
+)
+button_1.place(x=462.0, y=194.0, width=183.0, height=62.0)
+button_1.bind('<Enter>', lambda e: button_1.config(image=button_image_hover_1))
+button_1.bind('<Leave>', lambda e: button_1.config(image=button_image_1))
+
+# Button 2: Run All
+button_image_2 = PhotoImage(file=relative_to_assets("button_2.png"))
+button_image_hover_2 = PhotoImage(file=relative_to_assets("button_hover_2.png"))
+
+button_2 = Button(
+    image=button_image_2,
+    borderwidth=0,
+    highlightthickness=0,
+    command=run_all_crawlers,
+    relief="flat"
+)
+button_2.place(x=462.0, y=275.0, width=183.0, height=62.0)
+button_2.bind('<Enter>', lambda e: button_2.config(image=button_image_hover_2))
+button_2.bind('<Leave>', lambda e: button_2.config(image=button_image_2))
+
+# Status bar
+status_var = StringVar()
+status_var.set("Idle")
+status_label = Label(window, textvariable=status_var, font=("Inter", 10), anchor="w", bg="#e0e0e0")
+status_label.place(x=0, y=380, width=700, height=20)
+
+# Progress bar
+progress_var = tk.IntVar()
+progress_bar = ttk.Progressbar(window, orient="horizontal", mode="determinate", maximum=100, variable=progress_var)
+progress_bar.place(x=0, y=360, width=700, height=20)
+
+# NK Label
+canvas.create_text(
+    682.0,
+    389.0,
+    anchor="nw",
+    text="NK",
+    fill="#FFFFFF",
+    font=("Inter SemiBold", 10 * -1)
+)
+
+# White left panel
+canvas.create_rectangle(0.0, 0.0, 388.0, 400.0, fill="#FFFFFF", outline="")
+
+# Background image on the left
+image_image_1 = PhotoImage(file=relative_to_assets("image_1.png"))
+canvas.create_image(193.0, 200.0, image=image_image_1)
+
+# Overlay CRISIL logo (top-right of left image)
+logo_path = "/mnt/data/ce673715-5d4e-4e23-ae32-87d0279990dc.png"  # Update if needed
+crisil_logo = Image.open(logo_path).resize((120, 40), Image.ANTIALIAS)
+crisil_logo_tk = ImageTk.PhotoImage(crisil_logo)
+canvas.create_image(370, 30, image=crisil_logo_tk, anchor="ne")
+
+window.resizable(False, False)
+window.mainloop()
+
