@@ -188,3 +188,156 @@ request = CrawlRequestDTO(
 crawler = BaseCrawler(request)
 crawler.run()
 ___________________________________________________________________________________
+
+
+STRATEGY PATTERN:
+------------------------------------------------------------------------------------
+crawler/
+├── base_crawler.py
+├── strategy/
+│   ├── __init__.py
+│   ├── strategy_interface.py      # CrawlStrategy
+│   ├── xpath_strategy.py          # XPathStrategy
+│   ├── extension_strategy.py      # ExtensionStrategy
+│   └── keyword_strategy.py        # KeywordStrategy
+├── dto/
+│   ├── __init__.py
+│   ├── crawler_request_dto.py     # CrawlRequestDTO
+│   └── content_filter_dto.py      # ContentFilter
+
+
+strategy_interface.py
+----
+from abc import ABC, abstractmethod
+
+class CrawlStrategy(ABC):
+    @abstractmethod
+    def crawl(self, driver, param, download_callback):
+        pass
+___________________________________________________________________________________
+
+xpath_strategy.py
+----
+from selenium.webdriver.common.by import By
+from strategy.strategy_interface import CrawlStrategy
+
+class XPathStrategy(CrawlStrategy):
+    def crawl(self, driver, param, download_callback):
+        for xpath_expr in param:
+            try:
+                element = driver.find_element(By.XPATH, xpath_expr)
+                href = element.get_attribute("href")
+                if href:
+                    print(f"[XPath] Found: {href}")
+                    download_callback(href)
+            except Exception as e:
+                print(f"[XPath Error] {e}")
+_____________________________________________________________________________________
+extension_strategy.py
+----
+from selenium.webdriver.common.by import By
+from strategy.strategy_interface import CrawlStrategy
+
+class ExtensionStrategy(CrawlStrategy):
+    def crawl(self, driver, param, download_callback):
+        links = driver.find_elements(By.TAG_NAME, "a")
+        for ext in param:
+            for link in links:
+                href = link.get_attribute("href")
+                if href and href.lower().endswith(ext):
+                    print(f"[Extension] Found: {href}")
+                    download_callback(href)
+                    break
+_______________________________________________________________________________________
+keyword_strategy.py
+----
+from selenium.webdriver.common.by import By
+from strategy.strategy_interface import CrawlStrategy
+
+class KeywordStrategy(CrawlStrategy):
+    def crawl(self, driver, param, download_callback):
+        links = driver.find_elements(By.TAG_NAME, "a")
+        for keyword in param:
+            for link in links:
+                text = link.text.lower()
+                href = link.get_attribute("href")
+                if keyword.lower() in text and href:
+                    print(f"[Keyword] Found: {href}")
+                    download_callback(href)
+                    break
+_______________________________________________________________________________________
+base_crawler.py
+----
+import os
+import time
+import requests
+from selenium import webdriver
+
+from strategy.xpath_strategy import XPathStrategy
+from strategy.extension_strategy import ExtensionStrategy
+from strategy.keyword_strategy import KeywordStrategy
+
+from dto.crawler_request_dto import CrawlRequestDTO
+
+
+class BaseCrawler:
+    def __init__(self, request: CrawlRequestDTO, download_dir="downloads"):
+        self.url = str(request.bbase_url)
+        self.content_filter = request.content_filter
+        self.download_dir = os.path.abspath(download_dir)
+        os.makedirs(self.download_dir, exist_ok=True)
+
+        options = webdriver.ChromeOptions()
+        options.add_argument("--headless")
+        self.driver = webdriver.Chrome(options=options)
+        self.driver.get(self.url)
+        time.sleep(2)
+
+    def download_file(self, href):
+        try:
+            filename = os.path.join(self.download_dir, href.split("/")[-1].split("?")[0])
+            response = requests.get(href)
+            with open(filename, "wb") as f:
+                f.write(response.content)
+            print(f"[Download] Saved: {filename}")
+        except Exception as e:
+            print(f"[Download Error] {e}")
+
+    def run(self):
+        try:
+            for filter in self.content_filter:
+                if filter.xpath:
+                    strategy = XPathStrategy()
+                    strategy.crawl(self.driver, filter.xpath, self.download_file)
+
+                if filter.file_extension:
+                    strategy = ExtensionStrategy()
+                    strategy.crawl(self.driver, filter.file_extension, self.download_file)
+
+                if filter.links_contains_text:
+                    strategy = KeywordStrategy()
+                    strategy.crawl(self.driver, filter.links_contains_text, self.download_file)
+        finally:
+            self.driver.quit()
+
+________________________________________________________________________________________
+
+Example usage:
+from dto.crawler_request_dto import CrawlRequestDTO
+from dto.content_filter_dto import ContentFilter
+from base_crawler import BaseCrawler
+
+request = CrawlRequestDTO(
+    bbase_url="https://example.com",
+    content_filter=[
+        ContentFilter(
+            file_extension=[".pdf"],
+            xpath=["//a[contains(text(),'Annual')]"],
+            links_contains_text=["2024 annual report"]
+        )
+    ]
+)
+
+crawler = BaseCrawler(request)
+crawler.run()
+
