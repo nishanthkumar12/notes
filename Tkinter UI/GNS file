@@ -601,4 +601,39 @@ canvas.create_image(370, 30, image=crisil_logo_tk, anchor="ne")
 
 window.resizable(False, False)
 window.mainloop()
++++++++++++++++++++++++++++++++++++++++++++++++++
+import importlib.util
+import sys
+import os
+from pathlib import Path
+
+def get_crawlers_path():
+    if getattr(sys, 'frozen', False):
+        # Running in bundled .exe
+        base_path = Path(sys._MEIPASS)
+    else:
+        # Running in script mode
+        base_path = Path(__file__).parent
+    return base_path / "crawlers"
+
+def load_crawlers():
+    crawlers = {}
+    crawlers_path = get_crawlers_path()
+
+    for filename in os.listdir(crawlers_path):
+        if filename.startswith("crawler_") and filename.endswith(".py"):
+            filepath = crawlers_path / filename
+            module_name = f"crawlers.{filename[:-3]}"  # Unique module name
+            try:
+                spec = importlib.util.spec_from_file_location(module_name, filepath)
+                module = importlib.util.module_from_spec(spec)
+                sys.modules[module_name] = module
+                spec.loader.exec_module(module)
+
+                if hasattr(module, "run"):
+                    label = filename.replace("crawler_", "Crawler ").replace(".py", "").title()
+                    crawlers[label] = module.run
+            except Exception as e:
+                print(f"Failed to load {filename}: {e}")
+    return crawlers
 
