@@ -602,38 +602,179 @@ canvas.create_image(370, 30, image=crisil_logo_tk, anchor="ne")
 window.resizable(False, False)
 window.mainloop()
 +++++++++++++++++++++++++++++++++++++++++++++++++
-import importlib.util
+NEW UPDATED FOR AUTO-PY-EXE
+----------------------------
 import sys
 import os
+import threading
+import importlib
 from pathlib import Path
+from tkinter import Tk, Canvas, Button, PhotoImage, messagebox, StringVar, Label, IntVar
+from tkinter import ttk
+from PIL import Image, ImageTk
 
-def get_crawlers_path():
-    if getattr(sys, 'frozen', False):
-        # Running in bundled .exe
-        base_path = Path(sys._MEIPASS)
-    else:
-        # Running in script mode
-        base_path = Path(__file__).parent
-    return base_path / "crawlers"
+# Adjust for bundled .exe or normal script
+if getattr(sys, 'frozen', False):
+    BASE_PATH = Path(sys._MEIPASS)
+else:
+    BASE_PATH = Path(__file__).parent
 
+ASSETS_PATH = BASE_PATH / "build" / "assets" / "frame0"
+CRAWLERS_PATH = BASE_PATH / "crawlers"
+LOGO_PATH = BASE_PATH / "ce673715-5d4e-4e23-ae32-87d0279990dc.png"
+
+# Dynamically load all crawler modules from `crawlers/` folder
 def load_crawlers():
     crawlers = {}
-    crawlers_path = get_crawlers_path()
-
-    for filename in os.listdir(crawlers_path):
+    for filename in os.listdir(CRAWLERS_PATH):
         if filename.startswith("crawler_") and filename.endswith(".py"):
-            filepath = crawlers_path / filename
-            module_name = f"crawlers.{filename[:-3]}"  # Unique module name
+            name = filename[:-3]
             try:
-                spec = importlib.util.spec_from_file_location(module_name, filepath)
+                spec = importlib.util.spec_from_file_location(
+                    f"crawlers.{name}", CRAWLERS_PATH / filename
+                )
                 module = importlib.util.module_from_spec(spec)
-                sys.modules[module_name] = module
                 spec.loader.exec_module(module)
-
                 if hasattr(module, "run"):
-                    label = filename.replace("crawler_", "Crawler ").replace(".py", "").title()
+                    label = name.replace("crawler_", "Crawler ").title()
                     crawlers[label] = module.run
             except Exception as e:
-                print(f"Failed to load {filename}: {e}")
+                print(f"Failed to import {name}: {e}")
     return crawlers
+
+crawler_functions = load_crawlers()
+
+def relative_to_assets(path: str) -> Path:
+    return ASSETS_PATH / Path(path)
+
+def update_status(message):
+    status_var.set(message)
+    status_label.update_idletasks()
+
+def update_progress(value):
+    progress_var.set(value)
+    progress_bar.update_idletasks()
+
+def threaded(func):
+    def wrapper(*args, **kwargs):
+        threading.Thread(target=func, args=args, kwargs=kwargs).start()
+    return wrapper
+
+@threaded
+def run_selected_crawler():
+    selected = crawler_var.get()
+    if selected not in crawler_functions:
+        messagebox.showerror("Error", "Please select a valid crawler.")
+        return
+    try:
+        update_status(f"Running {selected}...")
+        update_progress(10)
+        crawler_functions[selected]()
+        update_progress(100)
+        messagebox.showinfo("Success", f"{selected} finished successfully")
+    except Exception as e:
+        update_status("Error")
+        messagebox.showerror("Error", f"Error occurred: {e}")
+    finally:
+        update_status("Idle")
+        update_progress(0)
+
+@threaded
+def run_all_crawlers():
+    try:
+        step = 100 // len(crawler_functions)
+        progress = 0
+        failed = []
+        for name, func in crawler_functions.items():
+            try:
+                update_status(f"Running {name}...")
+                func()
+                progress += step
+                update_progress(progress)
+            except Exception as e:
+                failed.append(name)
+        update_progress(100)
+        if failed:
+            messagebox.showwarning("Partial Success", f"Some crawlers failed: {', '.join(failed)}")
+        else:
+            messagebox.showinfo("Success", "All crawlers run successfully")
+    except Exception as e:
+        update_status("Error")
+        messagebox.showerror("Error", f"Error: {e}")
+    finally:
+        update_status("Idle")
+        update_progress(0)
+
+window = Tk()
+window.geometry("700x400")
+window.configure(bg="#FFFFFF")
+
+canvas = Canvas(window, bg="#FFFFFF", height=400, width=700, bd=0, highlightthickness=0, relief="ridge")
+canvas.place(x=0, y=0)
+canvas.create_rectangle(387.0, 0.0, 700.0, 400.0, fill="#A72929", outline="")
+
+# Dropdown
+crawler_var = ttk.Combobox(window, font=("Inter", 12), state="readonly")
+crawler_var['values'] = list(crawler_functions.keys())
+crawler_var.set("Select a Crawler")
+crawler_var.place(x=446, y=127, width=214, height=33)
+
+# Heading
+canvas.create_text(472.0, 59.0, anchor="nw", text="Select Crawler", fill="#FFFFFF", font=("Inter Bold", 24 * -1))
+
+# Buttons
+button_image_1 = PhotoImage(file=relative_to_assets("button_1.png"))
+button_image_hover_1 = PhotoImage(file=relative_to_assets("button_hover_1.png"))
+
+button_1 = Button(
+    image=button_image_1,
+    borderwidth=0,
+    highlightthickness=0,
+    command=run_selected_crawler,
+    relief="flat"
+)
+button_1.place(x=462.0, y=194.0, width=183.0, height=62.0)
+button_1.bind('<Enter>', lambda e: button_1.config(image=button_image_hover_1))
+button_1.bind('<Leave>', lambda e: button_1.config(image=button_image_1))
+
+button_image_2 = PhotoImage(file=relative_to_assets("button_2.png"))
+button_image_hover_2 = PhotoImage(file=relative_to_assets("button_hover_2.png"))
+
+button_2 = Button(
+    image=button_image_2,
+    borderwidth=0,
+    highlightthickness=0,
+    command=run_all_crawlers,
+    relief="flat"
+)
+button_2.place(x=462.0, y=275.0, width=183.0, height=62.0)
+button_2.bind('<Enter>', lambda e: button_2.config(image=button_image_hover_2))
+button_2.bind('<Leave>', lambda e: button_2.config(image=button_image_2))
+
+# Status bar
+status_var = StringVar()
+status_var.set("Idle")
+status_label = Label(window, textvariable=status_var, font=("Inter", 10), anchor="w", bg="#e0e0e0")
+status_label.place(x=0, y=380, width=700, height=20)
+
+# Progress bar
+progress_var = IntVar()
+progress_bar = ttk.Progressbar(window, orient="horizontal", mode="determinate", maximum=100, variable=progress_var)
+progress_bar.place(x=0, y=360, width=700, height=20)
+
+# White left panel
+canvas.create_rectangle(0.0, 0.0, 388.0, 400.0, fill="#FFFFFF", outline="")
+
+# Left image
+image_image_1 = PhotoImage(file=relative_to_assets("image_1.png"))
+canvas.create_image(193.0, 200.0, image=image_image_1)
+
+# CRISIL logo
+crisil_logo = Image.open(LOGO_PATH).resize((120, 40), Image.ANTIALIAS)
+crisil_logo_tk = ImageTk.PhotoImage(crisil_logo)
+canvas.create_image(370, 30, image=crisil_logo_tk, anchor="ne")
+
+window.resizable(False, False)
+window.mainloop()
+
 
