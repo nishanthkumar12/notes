@@ -339,3 +339,31 @@ async def crawl_site(request: CrawlRequestDTO):
         return {"message": "Crawling completed successfully."}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+_____=____________
+import sys
+import os
+from pathlib import Path
+import importlib.util
+
+def load_crawlers():
+    crawlers = {}
+
+    if getattr(sys, 'frozen', False):
+        base_path = Path(sys._MEIPASS) / "crawlers"
+    else:
+        base_path = Path(__file__).parent / "crawlers"
+
+    for filename in os.listdir(base_path):
+        if filename.startswith("crawler_") and filename.endswith(".py"):
+            file_path = base_path / filename
+            module_name = filename[:-3]  # e.g. crawler_01_example -> crawler_01_example
+            try:
+                spec = importlib.util.spec_from_file_location(module_name, file_path)
+                module = importlib.util.module_from_spec(spec)
+                spec.loader.exec_module(module)
+                if hasattr(module, "run"):
+                    label = module_name.replace("crawler_", "Crawler ").title()
+                    crawlers[label] = module.run
+            except Exception as e:
+                print(f"Failed to import {filename}: {e}")
+    return crawlers
