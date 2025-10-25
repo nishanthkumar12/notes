@@ -394,3 +394,39 @@ df2_parent_level = (
 
 # Now df2_parent_level has parent-level revenue
 print(df2_parent_level)
+
+# Updated for null entity
+import pandas as pd
+import numpy as np
+
+# --- Example setup ---
+# df1 = pd.DataFrame({'Entity': ['A', 'B'], 'Name': ['ParentA', 'ParentB'], 'Revenue': [1000, 800]})
+# df2 = pd.DataFrame({'Entity': ['C', 'D', 'E', '', np.nan],
+#                     'Name': ['ChildC', 'ChildD', 'ChildE', 'Unnamed1', 'Unnamed2'],
+#                     'Revenue': [400, 200, 300, 150, 250]})
+# mapping_df = pd.DataFrame({'Parent': ['A', 'A'], 'Child': ['C', 'D']})
+
+# --- Step 1: Separate rows with and without valid Entity ---
+df2_valid = df2[df2['Entity'].notna() & (df2['Entity'].astype(str).str.strip() != '')].copy()
+df2_blank = df2[~(df2['Entity'].notna() & (df2['Entity'].astype(str).str.strip() != ''))].copy()
+
+# --- Step 2: Merge valid ones with parent mapping ---
+df2_merged = df2_valid.merge(mapping_df, left_on='Entity', right_on='Child', how='left')
+
+# --- Step 3: Replace Entity with parent where applicable ---
+df2_merged['Entity'] = df2_merged['Parent'].fillna(df2_merged['Entity'])
+
+# --- Step 4: Drop helper columns ---
+df2_merged = df2_merged.drop(columns=['Parent', 'Child'])
+
+# --- Step 5: Aggregate revenue at the new Entity level ---
+df2_parent_level = (
+    df2_merged.groupby('Entity', as_index=False)
+    .agg({'Name': 'first', 'Revenue': 'sum'})
+)
+
+# --- Step 6: Add back blank-Entity rows (untouched) ---
+df2_final = pd.concat([df2_parent_level, df2_blank], ignore_index=True)
+
+print(df2_final)
+
