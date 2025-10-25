@@ -367,3 +367,30 @@ def load_crawlers():
             except Exception as e:
                 print(f"Failed to import {filename}: {e}")
     return crawlers
+
+# 2:1
+
+import pandas as pd
+
+# Example setup
+# df1 = pd.DataFrame({'Entity': ['A', 'B'], 'Name': ['ParentA', 'ParentB'], 'Revenue': [1000, 800]})
+# df2 = pd.DataFrame({'Entity': ['C', 'D', 'E'], 'Name': ['ChildC', 'ChildD', 'ChildE'], 'Revenue': [400, 200, 300]})
+# mapping_df = pd.DataFrame({'Parent': ['A', 'A'], 'Child': ['C', 'D']})
+
+# Step 1: Merge df2 with mapping to identify parents
+df2_merged = df2.merge(mapping_df, left_on='Entity', right_on='Child', how='left')
+
+# Step 2: Replace 'Entity' with parent where applicable
+df2_merged['Entity'] = df2_merged['Parent'].fillna(df2_merged['Entity'])
+
+# Step 3: Drop helper columns
+df2_merged = df2_merged.drop(columns=['Parent', 'Child'])
+
+# Step 4: Aggregate revenue by new 'Entity'
+df2_parent_level = (
+    df2_merged.groupby('Entity', as_index=False)
+    .agg({'Name': 'first', 'Revenue': 'sum'})
+)
+
+# Now df2_parent_level has parent-level revenue
+print(df2_parent_level)
