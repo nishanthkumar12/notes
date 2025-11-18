@@ -430,3 +430,57 @@ df2_final = pd.concat([df2_parent_level, df2_blank], ignore_index=True)
 
 print(df2_final)
 
+-------------------/--------------------
+import pandas as pd
+
+# -----------------------------
+# 1. Merge all three (respect df1)
+# -----------------------------
+merged = (
+    df1
+    .merge(df2, on="Name", how="left", suffixes=("", "_df2"))
+    .merge(df3, on="Name", how="left", suffixes=("", "_df3"))
+)
+
+# ------------------------------------------------------
+# 2. Rows in df1 NOT present in df2   (left anti-join)
+# ------------------------------------------------------
+df1_not_in_df2 = df1.merge(df2[['Name']], on='Name', how='left', indicator=True)
+df1_not_in_df2 = df1_not_in_df2[df1_not_in_df2['_merge'] == 'left_only'].drop(columns=['_merge'])
+
+# ------------------------------------------------------
+# 3. Rows in df1 NOT present in df3   (left anti-join)
+# ------------------------------------------------------
+df1_not_in_df3 = df1.merge(df3[['Name']], on='Name', how='left', indicator=True)
+df1_not_in_df3 = df1_not_in_df3[df1_not_in_df3['_merge'] == 'left_only'].drop(columns=['_merge'])
+
+# ------------------------------------------------------
+# 4. Rows in df2 NOT present in df1   (new rows in df2)
+# ------------------------------------------------------
+df2_not_in_df1 = df2.merge(df1[['Name']], on='Name', how='left', indicator=True)
+df2_not_in_df1 = df2_not_in_df1[df2_not_in_df1['_merge'] == 'left_only'].drop(columns=['_merge'])
+
+# ------------------------------------------------------
+# 5. Rows in df3 NOT present in df1   (new rows in df3)
+# ------------------------------------------------------
+df3_not_in_df1 = df3.merge(df1[['Name']], on='Name', how='left', indicator=True)
+df3_not_in_df1 = df3_not_in_df1[df3_not_in_df1['_merge'] == 'left_only'].drop(columns=['_merge'])
+
+# ------------------------------------------------------
+# 6. Summary sheet
+# ------------------------------------------------------
+summary = pd.DataFrame({
+    "Description": [
+        "Rows in df1 not in df2",
+        "Rows in df1 not in df3",
+        "Rows in df2 not in df1",
+        "Rows in df3 not in df1"
+    ],
+    "Count": [
+        len(df1_not_in_df2),
+        len(df1_not_in_df3),
+        len(df2_not_in_df1),
+        len(df3_not_in_df1)
+    ]
+})
+
