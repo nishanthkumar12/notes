@@ -484,3 +484,195 @@ summary = pd.DataFrame({
     ]
 })
 
+health check -----------------
+
+"""
+website_health_check.py
+-----------------------
+Fast async URL health-check system.
+Use this before running your web crawlers.
+
+Features:
+- async parallel requests
+- timeout handling
+- SSL verification toggles
+- automatic redirect detection
+- structured output for crawler pre-check
+- pydantic-based configuration
+"""
+
+import asyncio
+import httpx
+from typing import List, Optional
+from pydantic import BaseModel, HttpUrl, ValidationError
+from datetime import datetime
+
+
+# -----------------------------------------
+# CONFIG MODEL
+# -----------------------------------------
+
+class URLItem(BaseModel):
+    url: HttpUrl
+    allow_redirects: bool = True
+    timeout: float = 10.0
+    verify_ssl: bool = True
+
+
+class HealthCheckConfig(BaseModel):
+    urls: List[URLItem]
+    concurrency_limit: int = 10
+
+
+# -----------------------------------------
+# HEALTH CHECK LOGIC
+# -----------------------------------------
+
+async def check_url(client: httpx.AsyncClient, item: URLItem) -> dict:
+    """Check a single URL and return a structured result."""
+    start_time = datetime.utcnow()
+
+    try:
+        response = await client.get(
+            item.url,
+            timeout=item.timeout,
+            follow_redirects=item.allow_redirects
+        )
+
+        return {
+            "url": item.url,
+            "status": response.status_code,
+            "ok": response.is_success,
+            "reason": response.reason_phrase,
+            "redirected": response.history != [],
+            "final_url": str(response.url),
+            "elapsed_ms": response.elapsed.total_seconds() * 1000,
+            "error": None,
+            "checked_at": start_time.isoformat()
+        }
+
+    except httpx.ConnectTimeout:
+        return {
+            "url": item.url,
+            "status": None,
+            "ok": False,
+            "reason": "timeout",
+            "redirected": False,
+            "final_url": None,
+            "elapsed_ms": None,
+            "error": "Connection timeout",
+            "checked_at": start_time.isoformat()
+        }
+
+    except httpx.ReadTimeout:
+        return {
+            "url": item.url,
+            "status": None,
+            "ok": False,
+            "reason": "timeout",
+            "redirected": False,
+            "final_url": None,
+            "elapsed_ms": None,
+            "error": "Read timeout",
+            "checked_at": start_time.isoformat()
+        }
+
+    except httpx.ConnectError as e:
+        return {
+            "url": item.url,
+            "status": None,
+            "ok": False,
+            "reason": "connection_error",
+            "redirected": False,
+            "final_url": None,
+            "elapsed_ms": None,
+            "error": str(e),
+            "checked_at": start_time.isoformat()
+        }
+
+    except httpx.HTTPError as e:
+        return {
+            "url": item.url,
+            "status": None,
+            "ok": False,
+            "reason": "http_error",
+            "redirected": False,
+            "final_url": None,
+            "elapsed_ms": None,
+            "error": str(e),
+            "checked_at": start_time.isoformat()
+        }
+
+    except Exception as e:
+        return {
+            "url": item.url,
+            "status": None,
+            "ok": False,
+            "reason": "unknown_error",
+            "redirected": False,
+            "final_url": None,
+            "elapsed_ms": None,
+            "error": str(e),
+            "checked_at": start_time.isoformat()
+        }
+
+
+# -----------------------------------------
+# RUNNER
+# -----------------------------------------
+
+async def run_health_check(config: HealthCheckConfig) -> List[dict]:
+    """Runs checks concurrently and returns results."""
+    semaphore = asyncio.Semaphore(config.concurrency_limit)
+
+    async with httpx.AsyncClient(verify=True) as client:
+
+        async def worker(item: URLItem):
+            async with semaphore:
+                # Override SSL verification per URL
+                client._verify = item.verify_ssl
+                return await check_url(client, item)
+
+        tasks = [worker(url) for url in config.urls]
+        return await asyncio.gather(*tasks)
+
+
+# -----------------------------------------
+# SAMPLE USAGE
+# -----------------------------------------
+
+if __name__ == "__main__":
+
+    # EXAMPLE URLs (use your actual list)
+    test_urls = [
+        # 200
+        {"url": "https://httpstat.us/200"},
+
+        # Redirect
+        {"url": "https://httpstat.us/301"},
+
+        # Client errors
+        {"url": "https://httpstat.us/404"},
+        {"url": "https://httpstat.us/400"},
+
+        # Server errors
+        {"url": "https://httpstat.us/500"},
+        {"url": "https://httpstat.us/503"},
+        {"url": "https://httpstat.us/504?sleep=3000", "timeout": 2},
+
+        # SSL failure examples
+        {"url": "https://expired.badssl.com", "verify_ssl": False},
+        {"url": "https://self-signed.badssl.com", "verify_ssl": False},
+    ]
+
+    try:
+        config = HealthCheckConfig(urls=[URLItem(**u) for u in test_urls])
+    except ValidationError as ve:
+        print("Config validation error:", ve)
+        exit(1)
+
+    results = asyncio.run(run_health_check(config))
+
+    print("\n=== Website Health Check Report ===\n")
+    for r in results:
+        print(r)
