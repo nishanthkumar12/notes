@@ -676,3 +676,119 @@ if __name__ == "__main__":
     print("\n=== Website Health Check Report ===\n")
     for r in results:
         print(r)
+
+new version ---------
+
+"""
+website_health_check.py
+-----------------------
+Simple async URL health checker.
+
+Usage:
+    - Add all target URLs into the URLS list
+    - Run: python website_health_check.py
+"""
+
+import asyncio
+import httpx
+from typing import List
+from datetime import datetime
+from pydantic import BaseModel, HttpUrl
+
+
+# ----------------------------------------------------
+# URL Model
+# ----------------------------------------------------
+
+class URLItem(BaseModel):
+    url: HttpUrl
+    timeout: float = 10.0
+    allow_redirects: bool = True
+    verify_ssl: bool = True
+
+
+# ----------------------------------------------------
+# Check a single URL
+# ----------------------------------------------------
+
+async def check_url(client: httpx.AsyncClient, item: URLItem) -> dict:
+    start = datetime.utcnow()
+
+    try:
+        response = await client.get(
+            item.url,
+            timeout=item.timeout,
+            follow_redirects=item.allow_redirects
+        )
+        return {
+            "url": item.url,
+            "status": response.status_code,
+            "ok": response.is_success,
+            "reason": response.reason_phrase,
+            "redirected": bool(response.history),
+            "final_url": str(response.url),
+            "elapsed_ms": response.elapsed.total_seconds() * 1000,
+            "error": None,
+            "checked_at": start.isoformat()
+        }
+
+    except Exception as e:
+        return {
+            "url": item.url,
+            "status": None,
+            "ok": False,
+            "reason": "error",
+            "redirected": False,
+            "final_url": None,
+            "elapsed_ms": None,
+            "error": str(e),
+            "checked_at": start.isoformat()
+        }
+
+
+# ----------------------------------------------------
+# Run all health checks in parallel
+# ----------------------------------------------------
+
+async def run_health_check(urls: List[URLItem], concurrency_limit: int = 10) -> List[dict]:
+    semaphore = asyncio.Semaphore(concurrency_limit)
+
+    async with httpx.AsyncClient() as client:
+
+        async def worker(item: URLItem):
+            async with semaphore:
+                client._verify = item.verify_ssl
+                return await check_url(client, item)
+
+        tasks = [worker(u) for u in urls]
+        return await asyncio.gather(*tasks)
+
+
+# ----------------------------------------------------
+# MAIN: PUT YOUR WEBSITE LIST HERE
+# ----------------------------------------------------
+
+if __name__ == "__main__":
+
+    # ⭐⭐⭐ Add all URLs to test here ⭐⭐⭐
+    URLS = [
+        "https://httpstat.us/200",
+        "https://httpstat.us/301",
+        "https://httpstat.us/404",
+        "https://httpstat.us/500",
+        "https://httpstat.us/503",
+        "https://httpstat.us/504?sleep=3000",
+        "https://expired.badssl.com",
+        "https://self-signed.badssl.com"
+    ]
+
+    # Convert into pydantic URLItem list
+    url_items = [URLItem(url=u) for u in URLS]
+
+    # Run checks
+    results = asyncio.run(run_health_check(url_items))
+
+    # Output
+    print("\n=== Website Health Check Report ===\n")
+    for r in results:
+        print(r)
