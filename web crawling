@@ -792,3 +792,73 @@ if __name__ == "__main__":
     print("\n=== Website Health Check Report ===\n")
     for r in results:
         print(r)
+
+++++++++++++++PDF comparison++++++++
+import os
+import hashlib
+from PyPDF2 import PdfReader
+
+
+def extract_text_from_pdf(pdf_path):
+    """Extract and normalize text from a PDF file"""
+    reader = PdfReader(pdf_path)
+    text = ""
+
+    for page in reader.pages:
+        page_text = page.extract_text()
+        if page_text:
+            text += page_text
+
+    # Normalize text
+    return " ".join(text.split()).lower()
+
+
+def generate_content_hash(pdf_path):
+    """Generate a hash based on PDF content"""
+    text = extract_text_from_pdf(pdf_path)
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
+
+def find_new_pdfs(base_folder, new_folder):
+    """
+    Returns list of PDF filenames in new_folder
+    whose content does NOT exist in base_folder
+    """
+
+    base_hashes = set()
+
+    # Step 1: Hash all Base PDFs (larger folder)
+    for file in os.listdir(base_folder):
+        if file.lower().endswith(".pdf"):
+            full_path = os.path.join(base_folder, file)
+            try:
+                base_hashes.add(generate_content_hash(full_path))
+            except Exception as e:
+                print(f"Error processing Base file {file}: {e}")
+
+    # Step 2: Compare New PDFs
+    new_unique_files = []
+
+    for file in os.listdir(new_folder):
+        if file.lower().endswith(".pdf"):
+            full_path = os.path.join(new_folder, file)
+            try:
+                new_hash = generate_content_hash(full_path)
+                if new_hash not in base_hashes:
+                    new_unique_files.append(file)
+            except Exception as e:
+                print(f"Error processing New file {file}: {e}")
+
+    return new_unique_files
+
+
+# Example usage
+if __name__ == "__main__":
+    base_folder = r"/path/to/Base"
+    new_folder = r"/path/to/New"
+
+    result = find_new_pdfs(base_folder, new_folder)
+
+    print("PDFs in New folder NOT present in Base folder:")
+    for pdf in result:
+        print(pdf)
