@@ -1,0 +1,172 @@
+Read PDF and compare them:
+
+Regular - Which checks Timestamp.
+---------------------------------
+import os
+import hashlib
+import pandas as pd
+
+def get_file_hash(file_path):
+    """
+    Generates an MD5 hash of a file's content.
+    Reads in chunks to handle large files efficiently.
+    """
+    hasher = hashlib.md5()
+    try:
+        with open(file_path, 'rb') as f:
+            # Read 64kb chunks to avoid memory issues with large PDFs
+            buf = f.read(65536)
+            while len(buf) > 0:
+                hasher.update(buf)
+                buf = f.read(65536)
+        return hasher.hexdigest()
+    except FileNotFoundError:
+        return None
+
+def find_unique_new_files(base_folder, new_folder, output_excel):
+    # Dictionary to store hashes from the Base folder
+    # We use a set for O(1) lookup speed
+    base_hashes = set()
+
+    print("Step 1: Scanning Base folder...")
+    for root, _, files in os.walk(base_folder):
+        for file in files:
+            if file.lower().endswith('.pdf'):
+                file_path = os.path.join(root, file)
+                file_hash = get_file_hash(file_path)
+                if file_hash:
+                    base_hashes.add(file_hash)
+    
+    print(f"-> Found {len(base_hashes)} unique files in Base.")
+
+    # List to store names of files present in New but not in Base
+    unique_files = []
+
+    print("Step 2: Scanning New folder and comparing...")
+    for root, _, files in os.walk(new_folder):
+        for file in files:
+            if file.lower().endswith('.pdf'):
+                file_path = os.path.join(root, file)
+                current_hash = get_file_hash(file_path)
+
+                # Check if this hash exists in the Base set
+                if current_hash not in base_hashes:
+                    unique_files.append({
+                        "File Name": file,
+                        "Path": file_path
+                    })
+
+    print(f"-> Found {len(unique_files)} files in 'New' that are not in 'Base'.")
+
+    # Step 3: Save to Excel
+    if unique_files:
+        df = pd.DataFrame(unique_files)
+        df.to_excel(output_excel, index=False)
+        print(f"Step 3: Successfully saved results to '{output_excel}'")
+    else:
+        print("All files in 'New' are already present in 'Base'. No Excel file created.")
+
+# --- usage ---
+if __name__ == "__main__":
+    # Update these paths to your actual folder locations
+    BASE_DIR = r"C:\Path\To\Base_Folder"
+    NEW_DIR = r"C:\Path\To\New_Folder"
+    OUTPUT_FILE = "Missing_Files.xlsx"
+
+    find_unique_new_files(BASE_DIR, NEW_DIR, OUTPUT_FILE)
+
+==============================================================
+Version that only checks content and not timestamps:
+------------------------------------------------------
+import os
+import hashlib
+import pandas as pd
+from pypdf import PdfReader
+import re
+
+def get_text_hash(file_path):
+    """
+    Extracts text from a PDF, cleans it, and returns a hash of the text.
+    Returns None if the file is not a valid PDF or has no text.
+    """
+    try:
+        reader = PdfReader(file_path)
+        full_text = ""
+        
+        # Extract text from all pages
+        for page in reader.pages:
+            text = page.extract_text()
+            if text:
+                full_text += text
+        
+        # If no text found (e.g., scanned image PDF), return None or a specific flag
+        if not full_text.strip():
+            return "NO_TEXT_FOUND"
+
+        # Normalize text: Remove all whitespace, newlines, and tabs
+        # This ensures that formatting differences don't cause mismatches
+        clean_text = re.sub(r'\s+', '', full_text).lower()
+        
+        # Hash the cleaned text string
+        return hashlib.md5(clean_text.encode('utf-8')).hexdigest()
+
+    except Exception as e:
+        print(f"Error reading {file_path}: {e}")
+        return None
+
+def find_unique_content_files(base_folder, new_folder, output_excel):
+    # Set to store text-hashes from the Base folder
+    base_text_hashes = set()
+    
+    print("Step 1: Reading text from Base folder...")
+    for root, _, files in os.walk(base_folder):
+        for file in files:
+            if file.lower().endswith('.pdf'):
+                file_path = os.path.join(root, file)
+                text_hash = get_text_hash(file_path)
+                
+                if text_hash and text_hash != "NO_TEXT_FOUND":
+                    base_text_hashes.add(text_hash)
+    
+    print(f"-> Indexed content of {len(base_text_hashes)} unique files in Base.")
+
+    unique_files = []
+
+    print("Step 2: Comparing 'New' files against Base index...")
+    for root, _, files in os.walk(new_folder):
+        for file in files:
+            if file.lower().endswith('.pdf'):
+                file_path = os.path.join(root, file)
+                current_text_hash = get_text_hash(file_path)
+
+                # Special handling for empty/scanned files
+                status_note = ""
+                if current_text_hash == "NO_TEXT_FOUND":
+                    status_note = "Warning: No text found (Scanned PDF?)"
+                
+                # If the text hash is NOT in the base set, it's a new file
+                # We typically still capture "NO_TEXT_FOUND" files to be safe
+                if current_text_hash not in base_text_hashes:
+                    unique_files.append({
+                        "File Name": file,
+                        "Path": file_path,
+                        "Note": status_note
+                    })
+
+    print(f"-> Found {len(unique_files)} files in 'New' with unique content.")
+
+    # Step 3: Save to Excel
+    if unique_files:
+        df = pd.DataFrame(unique_files)
+        df.to_excel(output_excel, index=False)
+        print(f"Step 3: Successfully saved results to '{output_excel}'")
+    else:
+        print("All content in 'New' is already present in 'Base'.")
+
+# --- usage ---
+if __name__ == "__main__":
+    BASE_DIR = r"C:\Path\To\Base_Folder"
+    NEW_DIR = r"C:\Path\To\New_Folder"
+    OUTPUT_FILE = "Unique_Text_Files.xlsx"
+
+    find_unique_content_files(BASE_DIR, NEW_DIR, OUTPUT_FILE)
