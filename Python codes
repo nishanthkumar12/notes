@@ -170,3 +170,121 @@ if __name__ == "__main__":
     OUTPUT_FILE = "Unique_Text_Files.xlsx"
 
     find_unique_content_files(BASE_DIR, NEW_DIR, OUTPUT_FILE)
+==============================================================
+Hybrid version - beat version
+---------------------------------------------------------------
+import os
+import hashlib
+import pandas as pd
+
+def get_file_info(file_path):
+    """
+    Returns file size and MD5 hash.
+    Handles permission errors gracefully.
+    """
+    try:
+        # Get file size
+        file_size = os.path.getsize(file_path)
+        
+        # Get Hash
+        hasher = hashlib.md5()
+        with open(file_path, 'rb') as f:
+            # Read in chunks
+            buf = f.read(65536)
+            while len(buf) > 0:
+                hasher.update(buf)
+                buf = f.read(65536)
+        
+        return file_size, hasher.hexdigest()
+    
+    except PermissionError:
+        print(f"SKIPPING (Permission Denied): {file_path}")
+        return None, None
+    except Exception as e:
+        print(f"SKIPPING (Error: {e}): {file_path}")
+        return None, None
+
+def compare_folders_diagnostic(base_folder, new_folder, output_excel):
+    # Data structures for Base Folder
+    # Key: File Size, Value: List of Hashes (to handle rare collision of size)
+    base_data = {} 
+    base_file_count = 0
+
+    print(f"--- Scanning Base Folder: {base_folder} ---")
+    for root, _, files in os.walk(base_folder):
+        for file in files:
+            if file.lower().endswith('.pdf'):
+                base_file_count += 1
+                file_path = os.path.join(root, file)
+                size, f_hash = get_file_info(file_path)
+                
+                if size is not None:
+                    # Store by size first (optimization)
+                    if size not in base_data:
+                        base_data[size] = set()
+                    base_data[size].add(f_hash)
+
+    print(f"-> Base Folder: Found {base_file_count} PDF files.")
+
+    # Results list
+    results = []
+    new_file_count = 0
+
+    print(f"\n--- Scanning New Folder: {new_folder} ---")
+    for root, _, files in os.walk(new_folder):
+        for file in files:
+            if file.lower().endswith('.pdf'):
+                new_file_count += 1
+                file_path = os.path.join(root, file)
+                size, current_hash = get_file_info(file_path)
+
+                if size is None:
+                    continue # Skip error files
+
+                # LOGIC CHAIN
+                # 1. Exact Match: Size AND Hash exist in Base
+                if size in base_data and current_hash in base_data[size]:
+                    # Exact match found, ignore.
+                    continue
+                
+                # 2. Metadata Mismatch?: Size matches, but Hash does not
+                elif size in base_data and current_hash not in base_data[size]:
+                    results.append({
+                        "File Name": file,
+                        "Status": "Likely Duplicate (Metadata Diff)",
+                        "Reason": "Size Matches existing file, but Hash differs (Date/Save info changed)",
+                        "Path": file_path
+                    })
+                
+                # 3. True New File: Size does not exist in Base at all
+                else:
+                    results.append({
+                        "File Name": file,
+                        "Status": "Unique / New File",
+                        "Reason": "No file with this size exists in Base",
+                        "Path": file_path
+                    })
+
+    print(f"-> New Folder: Found {new_file_count} PDF files.")
+    print(f"-> Captured {len(results)} discrepancies.")
+
+    # Save to Excel
+    if results:
+        df = pd.DataFrame(results)
+        # Sort so 'Unique' files are at the top
+        df.sort_values(by="Status", ascending=False, inplace=True)
+        df.to_excel(output_excel, index=False)
+        print(f"\nSUCCESS: Results saved to '{output_excel}'")
+        print("Check the 'Status' column in Excel to separate real new files from metadata mismatches.")
+    else:
+        print("\nAll files in 'New' match exactly with 'Base'.")
+
+# --- usage ---
+if __name__ == "__main__":
+    # REPLACE WITH YOUR ACTUAL PATHS
+    BASE_DIR = r"C:\Path\To\Base"
+    NEW_DIR = r"C:\Path\To\New"
+    OUTPUT_FILE = "Comparison_Results.xlsx"
+
+    compare_folders_diagnostic(BASE_DIR, NEW_DIR, OUTPUT_FILE)
+==============================================================
