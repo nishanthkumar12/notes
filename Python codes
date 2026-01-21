@@ -288,3 +288,35 @@ if __name__ == "__main__":
 
     compare_folders_diagnostic(BASE_DIR, NEW_DIR, OUTPUT_FILE)
 ==============================================================
+
+def handle_option_and_download(driver, option_element):
+    main_window = driver.current_window_handle
+    existing_windows = set(driver.window_handles)
+
+    # Click option (opens new tab)
+    option_element.click()
+
+    # Wait for new tab
+    WebDriverWait(driver, 10).until(
+        lambda d: len(d.window_handles) > len(existing_windows)
+    )
+
+    # Identify new tab
+    new_window = (set(driver.window_handles) - existing_windows).pop()
+
+    # Switch to new tab
+    driver.switch_to.window(new_window)
+
+    # ---- Perform download actions here ----
+    # Example:
+    # driver.find_element(By.ID, "downloadBtn").click()
+
+    # Optional: wait for download to start/complete
+    time.sleep(2)
+
+    # Close only the new tab
+    driver.close()
+
+    # Switch back to main window
+    driver.switch_to.window(main_window)
+===========================================================
